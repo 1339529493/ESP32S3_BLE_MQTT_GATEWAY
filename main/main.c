@@ -6,7 +6,7 @@
 #include "mqtts.h"
 #include "ble.h"
 #include "gateway_msg.h" // 引入新定义
-
+#include "ui.h"
 static const char *TAG = "MAIN";
 
 // 声明全局队列句柄，或者通过参数传递
@@ -70,7 +70,7 @@ void app_main(void)
     // 创建任务，可以将队列句柄作为参数传递，这里简化为全局变量演示
     xTaskCreate(ble_task, "ble_task", 4096, NULL, 5, NULL);
     xTaskCreate(mqtt_task, "mqtt_task", 8192, NULL, 5, NULL);
-    
+    xTaskCreate(ui_task, "ui_task", 8192, NULL, 5, NULL);
     while(1) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }

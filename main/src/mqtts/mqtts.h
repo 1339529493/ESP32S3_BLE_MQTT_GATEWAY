@@ -22,7 +22,6 @@
 //腾讯云个人mosquitto 服务
 #define HOST_NAME           "lh-world.icu"                  
 #define HOST_PORT           8883                                                                
-/* 根据三元组内容计算得出的数值 */
 #define CLIENT_ID           "esp32client"                                                       /* 客户端ID */
 #define USER_NAME           "lh_mqtts"                                                          /* 客户端用户名 */
 #define PASSWORD            "1993047286"                                                         /* 密码 */

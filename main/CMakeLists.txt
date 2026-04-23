@@ -13,9 +13,12 @@ set(GATEWAY_INCLUDE "src/gateway")
 file(GLOB UTIL_SRCS "src/util/*.c")
 set(UTIL_INCLUDE "src/util")
 
-set(GATEWAY_SRCS ${MQTT_SRCS} ${WIFI_SRCS} ${BLE_SRCS} ${GATEWAY_SRCS} ${UTIL_SRCS})
-set(GATEWAY_INCLUDE ${MQTT_INCLUDE} ${WIFI_INCLUDE} ${BLE_INCLUDE} ${GATEWAY_INCLUDE} ${UTIL_INCLUDE})
+file(GLOB UI_SRCS "src/display/*.c")
+set(UI_INCLUDE "src/display")
+
+set(GATEWAY_SRCS ${MQTT_SRCS} ${WIFI_SRCS} ${BLE_SRCS} ${GATEWAY_SRCS} ${UTIL_SRCS} ${UI_SRCS})
+set(GATEWAY_INCLUDE ${MQTT_INCLUDE} ${WIFI_INCLUDE} ${BLE_INCLUDE} ${GATEWAY_INCLUDE} ${UTIL_INCLUDE} ${UI_INCLUDE})
 
 idf_component_register(SRCS "main.c" ${GATEWAY_SRCS}
-                    REQUIRES bt nvs_flash mqtt
+                    REQUIRES bt nvs_flash mqtt BSP
                     INCLUDE_DIRS "." ${GATEWAY_INCLUDE})
