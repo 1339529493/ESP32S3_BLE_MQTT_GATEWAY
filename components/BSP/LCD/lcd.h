@@ -1,5 +1,5 @@
-#ifndef __SPILCD_H
-#define __SPILCD_H
+#ifndef __LCD_H
+#define __LCD_H
 
 #include "driver/gpio.h"
 #include "esp_lcd_panel_interface.h"
@@ -69,17 +69,5 @@ extern esp_lcd_panel_handle_t panel_handle;
 esp_err_t spilcd_init(void);                /* spilcd初始化 */
 void spilcd_display_dir(uint8_t dir);       /* 设置屏幕方向 */
 void spilcd_clear(uint16_t color);          /* 清屏 */
-void spilcd_fill(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey, uint16_t color);           /* 在指定区域内填充单个颜色 */
-void spilcd_draw_point(uint16_t x, uint16_t y, uint16_t color);                                 /* 绘画一个像素点 */
-void spilcd_draw_line(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color);      /* 画线函数(直线、斜线) */
-void spilcd_draw_hline(uint16_t x, uint16_t y, uint16_t len, uint16_t color);                   /* 画水平线 */
-void spilcd_draw_rectangle(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,uint16_t color);  /* 画一个矩形 */
-void spilcd_draw_circle(uint16_t x0, uint16_t y0, uint16_t r, uint16_t color);                  /* 画一个圆 */
-void spilcd_show_char(uint16_t x, uint16_t y, uint8_t chr, uint8_t size, uint8_t mode, uint16_t color);                     /* 在指定位置显示一个字符 */
-void spilcd_show_num(uint16_t x, uint16_t y, uint32_t num, uint8_t len, uint8_t size, uint16_t color);                      /* 显示len个数字 */
-void spilcd_show_xnum(uint16_t x, uint16_t y, uint32_t num, uint8_t len, uint8_t size, uint8_t mode, uint16_t color);       /* 扩展显示len个数字(高位是0也显示) */
-void spilcd_show_string(uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint8_t size, char *p, uint16_t color);    /* 显示字符串 */
-
-
 
 #endif

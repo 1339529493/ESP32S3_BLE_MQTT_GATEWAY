@@ -68,9 +68,10 @@ void app_main(void)
     mqtt_to_ble_q = xQueueCreate(10, sizeof(gateway_msg_t));
 
     // 创建任务，可以将队列句柄作为参数传递，这里简化为全局变量演示
-    xTaskCreate(ble_task, "ble_task", 4096, NULL, 5, NULL);
-    xTaskCreate(mqtt_task, "mqtt_task", 8192, NULL, 5, NULL);
-    xTaskCreate(ui_task, "ui_task", 8192, NULL, 5, NULL);
+    xTaskCreatePinnedToCore(ui_task, "ui_task", 8192, NULL, 2, NULL,1);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    xTaskCreatePinnedToCore(ble_task, "ble_task", 4096, NULL, 5, NULL, 0);
+    xTaskCreatePinnedToCore(mqtt_task, "mqtt_task", 8192, NULL, 5, NULL, 0);
     while(1) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
