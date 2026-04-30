@@ -8,9 +8,9 @@
 
 const char *WIFI_TAG = "static_ip";
 /* 链接wifi名称 */
-#define DEFAULT_SSID "xxxx"
+#define DEFAULT_SSID "LinksField"
 /* wifi密码 */
-#define DEFAULT_PWD "xxxx"
+#define DEFAULT_PWD "linksfield2023"
 /* 事件标志 */
 static EventGroupHandle_t wifi_event;
 #define WIFI_CONNECTED_BIT BIT0

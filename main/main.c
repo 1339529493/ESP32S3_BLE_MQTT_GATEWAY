@@ -51,7 +51,7 @@ void ble_task(void *pvParameter)
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
-
+extern void http_test(void);
 void app_main(void)
 {
     esp_err_t ret;
@@ -64,14 +64,15 @@ void app_main(void)
     wifi_sta_init();
 
     // 创建队列
-    ble_to_mqtt_q = xQueueCreate(10, sizeof(gateway_msg_t));
-    mqtt_to_ble_q = xQueueCreate(10, sizeof(gateway_msg_t));
+    // ble_to_mqtt_q = xQueueCreate(10, sizeof(gateway_msg_t));
+    // mqtt_to_ble_q = xQueueCreate(10, sizeof(gateway_msg_t));
 
-    // 创建任务，可以将队列句柄作为参数传递，这里简化为全局变量演示
-    xTaskCreatePinnedToCore(ui_task, "ui_task", 8192, NULL, 2, NULL,1);
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    xTaskCreatePinnedToCore(ble_task, "ble_task", 4096, NULL, 5, NULL, 0);
-    xTaskCreatePinnedToCore(mqtt_task, "mqtt_task", 8192, NULL, 5, NULL, 0);
+    // // 创建任务，可以将队列句柄作为参数传递，这里简化为全局变量演示
+    // xTaskCreatePinnedToCore(ui_task, "ui_task", 8192, NULL, 2, NULL,1);
+    // vTaskDelay(pdMS_TO_TICKS(1000));
+    // xTaskCreatePinnedToCore(ble_task, "ble_task", 4096, NULL, 5, NULL, 0);
+    // xTaskCreatePinnedToCore(mqtt_task, "mqtt_task", 8192, NULL, 5, NULL, 0);
+    http_test();
     while(1) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
