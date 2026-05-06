@@ -38,11 +38,11 @@ void lv_lcd_init(void)
     lv_tick_set_cb(my_tick_cb);
 
     /* 创建一个显示对象，用于添加屏幕和控件 */
-    lv_display_t *display = lv_display_create(spilcddev.pwidth, spilcddev.pheight);
+    lv_display_t *display = lv_display_create(spilcddev.width, spilcddev.height);
 
     /* 为屏幕添加渲染缓冲区(双缓冲区)。
      * 这里添加了一个较小的部分缓冲区，假设为 16 位色深 (RGB565 格式) */
-    int lcd_size = spilcddev.pheight * spilcddev.pwidth / 10 * 2; /* x2 是因为 16 位色深 */
+    int lcd_size = spilcddev.height * spilcddev.width / 10 * 2; /* x2 是因为 16 位色深 */
     uint8_t *buf1 = (uint8_t *)heap_caps_malloc(lcd_size, MALLOC_CAP_SPIRAM);
     uint8_t *buf2 = (uint8_t *)heap_caps_malloc(lcd_size, MALLOC_CAP_SPIRAM);
     lv_display_set_buffers(display, buf1, buf2, lcd_size, LV_DISPLAY_RENDER_MODE_PARTIAL);

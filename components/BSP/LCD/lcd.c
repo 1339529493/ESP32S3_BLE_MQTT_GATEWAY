@@ -73,7 +73,7 @@ esp_err_t spilcd_init(void)
     /* 注册屏幕刷新完成回调函数 */
     ESP_ERROR_CHECK(esp_lcd_panel_io_register_event_callbacks(io_handle, &cbs, NULL));
 
-    spilcd_display_dir(1);      /* 横屏显示 */
+    spilcd_display_dir(0);      /* 横屏显示 */
     
     spilcd_clear(WHITE);        /* 清屏 */
     LCD_PWR(1);
