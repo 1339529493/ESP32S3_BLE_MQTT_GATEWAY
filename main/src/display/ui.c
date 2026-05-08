@@ -17,6 +17,7 @@ void ui_task(void *pvParameter)
     struct user_object obj = {0};
     int32_t ret;
     lv_lcd_init();
+    vTaskDelay(pdMS_TO_TICKS(2000));
     smf_set_initial(SMF_CTX(&obj), &desktop);
 
     while(1) {

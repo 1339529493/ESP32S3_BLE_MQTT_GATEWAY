@@ -1,7 +1,11 @@
 #include "smf.h"
 #include "ui.h"
+#include "key_scan.h"
+#include "gw_log.h"
 #include <time.h>
 #include <stdio.h>
+
+#define DESKTOP_TAG "DESKTOP"
 /* ==========================================================================
  * 桌面用户数据结构
  * ========================================================================== */
@@ -288,6 +292,12 @@ enum smf_state_result desktop_run(void *obj)
     
     // 这里可以检查新事件，例如接收到电量更新
     // 如果有外部数据更新，调用 desktop_update_battery/step 等
+    key_scan_msg_t msg;
+    if (xQueueReceive(key_scan_q, &msg, 0) == pdTRUE) 
+    {
+        LOGD(DESKTOP_TAG, "key scan event");
+        smf_set_state(&(data->ctx),&menu);
+    }
     
     return SMF_EVENT_PROPAGATE;
 }

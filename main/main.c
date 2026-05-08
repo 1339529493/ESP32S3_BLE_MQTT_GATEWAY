@@ -7,6 +7,8 @@
 #include "ble.h"
 #include "gateway_msg.h" // 引入新定义
 #include "ui.h"
+#include "key_scan.h"
+
 static const char *TAG = "MAIN";
 
 // 声明全局队列句柄，或者通过参数传递
@@ -61,7 +63,7 @@ void app_main(void)
         ESP_ERROR_CHECK(nvs_flash_init());
     }
 
-    wifi_sta_init();
+    // wifi_sta_init();
 
     // 创建队列
     // ble_to_mqtt_q = xQueueCreate(10, sizeof(gateway_msg_t));
@@ -69,8 +71,8 @@ void app_main(void)
 
     // // 创建任务，可以将队列句柄作为参数传递，这里简化为全局变量演示
     xTaskCreatePinnedToCore(ui_task, "ui_task", 8192, NULL, 2, NULL,1);
+    vTaskDelay(pdMS_TO_TICKS(1000));
     xTaskCreatePinnedToCore(key_scan_task, "key_scan", 2048, NULL, 3, NULL, 0);
-    // vTaskDelay(pdMS_TO_TICKS(1000));
     // xTaskCreatePinnedToCore(ble_task, "ble_task", 4096, NULL, 5, NULL, 0);
     // xTaskCreatePinnedToCore(mqtt_task, "mqtt_task", 8192, NULL, 5, NULL, 0);
     // http_test();
