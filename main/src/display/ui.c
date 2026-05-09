@@ -2,7 +2,7 @@
 
 #include "gw_log.h"
 #include "ui.h"
-#include "desktop.h"
+#include "desktop/desktop.h"
 #include "menu.h"
 
 const struct smf_state desktop = SMF_CREATE_STATE(desktop_entry, desktop_run, desktop_exit, NULL, NULL);

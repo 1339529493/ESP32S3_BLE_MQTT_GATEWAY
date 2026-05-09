@@ -40,6 +40,7 @@ void lv_lcd_init(void)
     /* 创建一个显示对象，用于添加屏幕和控件 */
     lv_display_t *display = lv_display_create(spilcddev.width, spilcddev.height);
 
+    lv_display_set_color_format(display, LV_COLOR_FORMAT_RGB565_SWAPPED);
     /* 为屏幕添加渲染缓冲区(双缓冲区)。
      * 这里添加了一个较小的部分缓冲区，假设为 16 位色深 (RGB565 格式) */
     int lcd_size = spilcddev.height * spilcddev.width / 10 * 2; /* x2 是因为 16 位色深 */
