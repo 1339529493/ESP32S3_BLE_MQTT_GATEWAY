@@ -34,12 +34,42 @@
 /**
  * Create a demo application
  */
+
+#include "time.h"
+#include "gw_log.h"
+#define TAG "DISPLAY"
+
 lv_ui guider_ui;
+extern int screen_digital_clock_1_min_value;
+extern int screen_digital_clock_1_hour_value;
+extern int screen_digital_clock_1_sec_value;
+extern int screen_analog_clock_1_hour_value;
+extern int screen_analog_clock_1_min_value;
+extern int screen_analog_clock_1_sec_value;
 void custom_init(lv_ui *ui)
 {
-
+    time_t now;
+    struct tm timeinfo;
+    char strftime_buf[64];
+    
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    screen_digital_clock_1_min_value = screen_analog_clock_1_hour_value = timeinfo.tm_min;
+    screen_digital_clock_1_hour_value = screen_analog_clock_1_hour_value = timeinfo.tm_hour;
+    screen_digital_clock_1_sec_value = screen_analog_clock_1_sec_value = timeinfo.tm_sec;
+    strftime(strftime_buf, sizeof(strftime_buf), "%Y/%m/%d", &timeinfo);
+    LOGI(TAG, "Current time: %s", strftime_buf);
+    if (ui->screen_datetext_1) {
+        lv_label_set_text(ui->screen_datetext_1, strftime_buf);
+    }
 }
 
+void custom_ing(lv_ui *ui)
+{
+    if (screen_digital_clock_1_hour_value == 0 && screen_digital_clock_1_min_value == 0 && screen_digital_clock_1_sec_value == 0) {
+
+    }
+}
 void custom_deinit(lv_ui *ui)
 {
 

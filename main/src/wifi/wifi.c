@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "wifi.h"
+#include "esp_sntp.h"
 #include "gw_log.h"
 
 const char *WIFI_TAG = "static_ip";
@@ -27,6 +28,46 @@ char lcd_buff[100] = {0};
     },                                            \
 }
 #define DEFAULT_SCAN_LIST_SIZE  12
+
+// 设置时区：北京时间 UTC+8
+static void set_timezone(void) {
+    setenv("TZ", "CST-8", 1);   // 1. 设置环境变量 TZ 为 "CST-8" (中国标准时间, UTC+8)
+    tzset();                    // 2. 让系统立即生效这个时区设置
+}
+
+// 初始化SNTP
+static void initialize_sntp(void) {
+    LOGI(WIFI_TAG, "Initializing SNTP");
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    
+    // 配置多个NTP服务器（冗余）
+    sntp_setservername(0, "cn.pool.ntp.org");
+    sntp_setservername(1, "time.apple.com");
+    sntp_setservername(2, "ntp.aliyun.com");
+    
+    sntp_init();
+}
+
+// 等待时间同步完成
+static void obtain_time(void) {
+    initialize_sntp();
+    
+    // 等待同步
+    int retry = 0;
+    const int retry_count = 15;
+    while (sntp_get_sync_status() != SNTP_SYNC_STATUS_COMPLETED && retry++ < retry_count) {
+        LOGI(WIFI_TAG, "Waiting for time sync... (%d/%d)", retry, retry_count);
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
+    
+    if (retry >= retry_count) {
+        LOGW(WIFI_TAG, "Time sync failed after %d retries", retry_count);
+    } else {
+        LOGI(WIFI_TAG, "Time sync completed!");
+    }
+    
+    set_timezone();
+}
 
 /**
  * @brief       WIFI链接糊掉函数
@@ -153,4 +194,5 @@ void wifi_sta_init(void)
     {
         LOGE(WIFI_TAG, "UNEXPECTED EVENT");
     }
+    obtain_time();
 }
