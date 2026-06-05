@@ -17,6 +17,8 @@ static EventGroupHandle_t wifi_event;
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
 
+#define RECONNECT_MAX_RETRY_NUMBER 20
+
 char lcd_buff[100] = {0};
 
 /* WIFI默认配置 */
@@ -80,30 +82,39 @@ static void obtain_time(void) {
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     static int s_retry_num = 0;
+    gateway_event_t evt;
 
     /* 扫描到要连接的WIFI事件 */
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
-        connet_display(0);
+        update_wifi_status(STATUS_CONNECTING);
         esp_wifi_connect();
     }
-    /* 连接WIFI事件 */
+    /* 连接WIFI事件 (表示 Wi-Fi 链路已打通,但还没有获取到 IP 地址)*/
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED)
     {
-        connet_display(2);
+        update_wifi_status(STATUS_CONNECTING);
     }
     /* 连接WIFI失败事件 */
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
+        // 1. 构造停止 MQTT 的事件
+        gateway_event_create_ref(&evt, MODULE_ID_WIFI, MODULE_ID_MQTT, CMD_WIFI_TO_MQTT_STOP, NULL, 0);
+        // 2. 发送给 MQTT 模块
+        // 注意：这里使用 send，如果队列满可能会失败，但对于控制指令通常没问题
+        gateway_event_send(MODULE_ID_MQTT, &evt, pdMS_TO_TICKS(100));
+
         /* 尝试连接 20次重连尝试*/
-        if (s_retry_num < 20)
+        if (s_retry_num < RECONNECT_MAX_RETRY_NUMBER)
         {
+            if (!s_retry_num) update_wifi_status(STATUS_RECONNECT);
             esp_wifi_connect();
             s_retry_num++;
             LOGI(WIFI_TAG, "retry to connect to the AP");
         }
         else
         {
+            update_wifi_status(STATUS_DISCONNECTED);
             xEventGroupSetBits(wifi_event, WIFI_FAIL_BIT);
         }
 
@@ -115,6 +126,13 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         LOGI(WIFI_TAG, "static ip:" IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
+        update_wifi_status(STATUS_CONNECTED);
+        // 1. 构造启动 MQTT 的事件
+        gateway_event_create_ref(&evt, MODULE_ID_WIFI, MODULE_ID_MQTT, CMD_WIFI_TO_MQTT_START, NULL, 0);
+        // 2. 发送给 MQTT 模块
+        gateway_event_send(MODULE_ID_MQTT, &evt, pdMS_TO_TICKS(100));
+
+        obtain_time();
         xEventGroupSetBits(wifi_event, WIFI_CONNECTED_BIT);
     }
 }
@@ -186,7 +204,7 @@ void wifi_sta_init(void)
     }
     else if (bits & WIFI_FAIL_BIT)
     {
-        connet_display(1);
+        update_wifi_status(STATUS_DISCONNECTED);
         LOGI(WIFI_TAG, "Failed to connect to SSID:%s, password:%s",
                  DEFAULT_SSID, DEFAULT_PWD);
     }
@@ -194,5 +212,4 @@ void wifi_sta_init(void)
     {
         LOGE(WIFI_TAG, "UNEXPECTED EVENT");
     }
-    obtain_time();
 }

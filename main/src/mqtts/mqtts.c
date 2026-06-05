@@ -3,9 +3,7 @@
 
 #include "gw_log.h"
 
-extern QueueHandle_t mqtt_to_ble_q;
-
-static const char *MQTTS_TAG = "MQTT_EXAMPLE";
+const char *MQTTS_TAG = "MQTT_EXAMPLE";
 static esp_mqtt_client_handle_t mqtt_client = NULL;
 
 /**
@@ -41,11 +39,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     {
         case MQTT_EVENT_CONNECTED:      /* 连接事件 */
             /* 订阅主题 */
+            update_mqtt_status(STATUS_CONNECTED);
             msg_id = esp_mqtt_client_subscribe(client, DEVICE_SUBSCRIBE, 0);
             LOGI(MQTTS_TAG, "sent subscribe successful, msg_id=%d", msg_id);
             break;
         case MQTT_EVENT_DISCONNECTED:   /* 断开连接事件 */
-
+            update_mqtt_status(STATUS_DISCONNECTED);
             break;
 
         case MQTT_EVENT_SUBSCRIBED:     /* 取消事件 */
@@ -62,16 +61,11 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         case MQTT_EVENT_DATA:           /* 接收数据事件 */
             printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
             printf("DATA=%.*s\r\n", event->data_len, event->data);
-            if (mqtt_to_ble_q != NULL) {
-                gateway_msg_t msg;
-                msg.type = MSG_TYPE_MQTT_CMD;
-                msg.len = event->data_len > MAX_PAYLOAD_LEN ? MAX_PAYLOAD_LEN : event->data_len;
-                memcpy(msg.payload, event->data, msg.len);
-                msg.timestamp = xTaskGetTickCount();
-
-                if (xQueueSend(mqtt_to_ble_q, &msg, pdMS_TO_TICKS(100)) != pdTRUE) {
-                    LOGW(MQTTS_TAG, "MQTT to BLE Queue Full!");
-                }
+            gateway_event_t msg;
+            if (gateway_event_create(&msg, MODULE_ID_MQTT, MODULE_ID_BLE, CMD_MQTT_TO_BLE_NOTIFY, event->data, event->data_len) != pdTRUE ||
+                gateway_event_send(MODULE_ID_BLE, &msg, pdMS_TO_TICKS(100)) != pdTRUE) 
+            {
+                LOGW(MQTTS_TAG, "MQTT to BLE Queue Full!");
             }
             break;
         case MQTT_EVENT_ERROR:
@@ -115,7 +109,7 @@ void mqtts_init(void)
     mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
 
     esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-    esp_mqtt_client_start(mqtt_client);      /* 启动MQTT */
+    // esp_mqtt_client_start(mqtt_client);      /* 启动MQTT */
 }
 
 int mqtts_publish(const char *data, int len, int qos, int retain)

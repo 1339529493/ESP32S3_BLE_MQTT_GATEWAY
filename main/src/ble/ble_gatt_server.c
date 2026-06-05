@@ -17,7 +17,6 @@
 #include "esp_gatt_common_api.h"
 
 #include "sdkconfig.h"
-#include "gw_log.h"
 #include "ble.h"
 extern QueueHandle_t ble_to_mqtt_q;
 
@@ -248,17 +247,11 @@ static void gatts_profile_gateway_event_handler(esp_gatts_cb_event_t event, esp_
         }
     case ESP_GATTS_WRITE_EVT: {     //写
         LOGD(GATTS_TAG, "Characteristic write, conn_id %d, trans_id %" PRIu32 ", handle %d", param->write.conn_id, param->write.trans_id, param->write.handle);
-        if (ble_to_mqtt_q != NULL) {
-            gateway_msg_t msg;
-            msg.type = MSG_TYPE_BLE_DATA;
-            msg.len = param->write.len > MAX_PAYLOAD_LEN ? MAX_PAYLOAD_LEN : param->write.len;
-            memcpy(msg.payload, param->write.value, msg.len);
-            msg.timestamp = xTaskGetTickCount();
-
-            // 发送队列，阻塞等待确保数据不丢失，或者使用 xQueueSendWithTimeout
-            if (xQueueSend(ble_to_mqtt_q, &msg, pdMS_TO_TICKS(100)) != pdTRUE) {
-                LOGE(GATTS_TAG, "BLE to MQTT Queue Full!");
-            }
+        gateway_event_t msg;
+        // 发送队列，阻塞等待确保数据不丢失，或者使用 xQueueSendWithTimeout
+        if (gateway_event_create(&msg, MODULE_ID_BLE, MODULE_ID_MQTT, CMD_BLE_TO_MQTT_PUBLISH, param->write.value, param->write.len) != pdTRUE ||
+            gateway_event_send(MODULE_ID_MQTT, &msg, pdMS_TO_TICKS(100)) != pdTRUE) {
+            LOGE(GATTS_TAG, "BLE to MQTT Queue Full!");
         }
         break;
     }

@@ -1,6 +1,5 @@
-#include "smf.h"
 #include "ui.h"
-
+#include "menu.h"
 void menu_entry(void *obj)
 {
     lv_obj_t * label = lv_label_create(lv_screen_active());

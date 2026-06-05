@@ -17,8 +17,11 @@
 #include "lwip/netdb.h"
 #include "esp_netif.h"
 
-#include "gateway_msg.h"
-
+#include "gateway_event.h"
+#include "gateway_status.h"
+#include "gateway_cmd.h"
+#include "gw_log.h"
+extern const char *MQTTS_TAG;
 //腾讯云个人mosquitto 服务
 #define HOST_NAME           "lh-world.icu"                  
 #define HOST_PORT           8883                                                                
@@ -32,4 +35,5 @@
 void mqtts_init(void);
 int mqtts_publish(const char *data, int len, int qos, int retain);
 // void mqtts_set_queue(QueueHandle_t to_ble_q);
+void mqtt_task(void *pvParameter);
 #endif

@@ -5,54 +5,11 @@
 #include "wifi.h"
 #include "mqtts.h"
 #include "ble.h"
-#include "gateway_msg.h" // 引入新定义
 #include "ui.h"
 #include "key_scan.h"
 
 static const char *TAG = "MAIN";
 
-// 声明全局队列句柄，或者通过参数传递
-QueueHandle_t ble_to_mqtt_q;
-QueueHandle_t mqtt_to_ble_q;
-
-void mqtt_task(void *pvParameter)
-{
-    ESP_LOGI(TAG, "MQTT Task Started");
-    // 1. 初始化 MQTT (内部会连接并订阅)
-    mqtts_init(); 
-    
-    gateway_msg_t msg;
-    while(1) {
-        // 2. 等待来自 BLE 的数据并上报
-        if (xQueueReceive(ble_to_mqtt_q, &msg, portMAX_DELAY) == pdTRUE) {
-            ESP_LOGI(TAG, "Received from BLE, len: %d", msg.len);
-            
-            // 【预留解析点】：如果需要在此处解析 BLE 数据再上报
-            // parse_ble_data_and_publish(&msg); 
-            // 直接发布原始数据或处理后数据
-            mqtts_publish((char *)msg.payload, msg.len, 0, 0);
-        }
-    }
-}
-
-void ble_task(void *pvParameter)
-{
-    ESP_LOGI(TAG, "BLE Task Started");
-    ble_init(); // 初始化 BLE GATT Server
-
-    gateway_msg_t msg;
-    while(1) {
-        // 1. 等待来自 MQTT 的下发指令
-        if (xQueueReceive(mqtt_to_ble_q, &msg, portMAX_DELAY) == pdTRUE) {
-            ESP_LOGI(TAG, "Received from MQTT, sending to BLE Notify");
-            // 调用 BLE 接口发送 Notify 给手机
-            ble_send_notify(msg.payload, msg.len);
-        }
-        
-        // 注意：BLE 接收数据是在 GATT 回调中发生的，需要在回调中发送队列
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
-}
 extern void http_test(void);
 void app_main(void)
 {

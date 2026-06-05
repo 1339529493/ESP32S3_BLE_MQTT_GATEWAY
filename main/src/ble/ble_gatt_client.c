@@ -16,9 +16,9 @@
 #include "esp_gatt_common_api.h"
 
 #include "sdkconfig.h"
-#include "gw_log.h"
+#include "ble.h"
 
-#define GATTC_TAG "GATTC_CLIENT"
+const char *GATTC_TAG = "GATTC_CLIENT";
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
 static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param);
 // ==========================================================
