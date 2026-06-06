@@ -25,6 +25,9 @@ typedef struct {
     bool is_time_synced;
 } system_status_t;
 
+// 状态管理初始化接口
+void status_mgr_init(void);
+
 // 获取全局状态实例的接口
 system_status_t* get_system_status(void);
 

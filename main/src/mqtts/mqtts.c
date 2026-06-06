@@ -4,7 +4,7 @@
 #include "gw_log.h"
 
 const char *MQTTS_TAG = "MQTT_EXAMPLE";
-static esp_mqtt_client_handle_t mqtt_client = NULL;
+esp_mqtt_client_handle_t mqtt_client = NULL;
 
 /**
  * @brief       错误日记

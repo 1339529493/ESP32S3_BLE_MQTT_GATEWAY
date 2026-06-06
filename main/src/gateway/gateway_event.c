@@ -64,3 +64,8 @@ BaseType_t gateway_event_create(gateway_event_t *evt, module_id_t src_id, module
     memcpy(evt->data, data, data_len);
     return gateway_event_create_ref(evt, src_id, dst_id, cmd_id, data, data_len);
 }
+
+void gateway_event_free(gateway_event_t *evt)
+{
+    free(evt->data);
+}

@@ -50,7 +50,7 @@ BaseType_t gateway_event_send(module_id_t dst_id, gateway_event_t *event, TickTy
 BaseType_t gateway_event_receive(module_id_t src_id, gateway_event_t *event, TickType_t timeout);
 
 /**
- * @brief 创建事件包 (供模块内部使用)
+ * @brief 创建事件包
  */
 BaseType_t gateway_event_create(gateway_event_t *evt, module_id_t src_id, module_id_t dst_id, uint32_t cmd_id, void *data, uint16_t data_len);
 
@@ -58,6 +58,8 @@ BaseType_t gateway_event_create(gateway_event_t *evt, module_id_t src_id, module
  * @brief 创建事件包 (零拷贝接口)
  */
 BaseType_t gateway_event_create_ref(gateway_event_t *evt, module_id_t src_id, module_id_t dst_id, uint32_t cmd_id, void *data, uint16_t data_len);
+
+void gateway_event_free(gateway_event_t *evt);
 
 /**
  * @brief 获取指定模块的事件队列句柄 (供模块内部任务使用)

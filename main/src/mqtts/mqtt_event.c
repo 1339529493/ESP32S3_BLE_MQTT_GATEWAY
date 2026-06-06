@@ -38,7 +38,7 @@ void mqtt_task(void *pvParameter)
                     // 原有的 BLE 数据上报逻辑
                     if (msg.data) {
                         mqtts_publish((char *)msg.data, msg.data_len, 0, 0);
-                        free(msg.data); // 释放内存池或 malloc 的内存
+                        // gateway_event_free(&msg); // 释放内存池或 malloc 的内存
                     }
                     break;
                     
