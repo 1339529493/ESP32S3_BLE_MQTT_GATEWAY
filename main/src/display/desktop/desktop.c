@@ -2,6 +2,8 @@
 #include "ui.h"
 #include "desktop.h"
 
+#include "key_scan.h"
+#include "ui.h"
 /**
  * @brief 桌面状态入口：初始化 GUI
  */
@@ -15,7 +17,7 @@ void desktop_entry(void *obj)
     
     // 2. 设置并加载主屏幕
     // setup_ui 会调用 setup_scr_screen 并加载屏幕
-    setup_ui(u_obj->guider_ui);
+    setup_ui_desktop(u_obj->guider_ui);
     
     // 3. 初始化自定义部分（如果有字体或额外样式）
     custom_init(u_obj->guider_ui);
@@ -31,6 +33,11 @@ void desktop_entry(void *obj)
 enum smf_state_result desktop_run(void *obj)
 {
     // 保持状态继续运行
+    key_scan_msg_t key_scan_msg;
+    if (xQueueReceive(key_scan_q,&key_scan_msg,0) == pdTRUE)
+    {
+        smf_set_state(SMF_CTX(obj), &menu);
+    }
     return 0;
 }
 
