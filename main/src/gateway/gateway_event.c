@@ -60,12 +60,19 @@ BaseType_t gateway_event_create_ref(gateway_event_t *evt, module_id_t src_id, mo
 
 BaseType_t gateway_event_create(gateway_event_t *evt, module_id_t src_id, module_id_t dst_id, uint32_t cmd_id, void *data, uint16_t data_len)
 {
-    evt->data = malloc(data_len);
-    memcpy(evt->data, data, data_len);
-    return gateway_event_create_ref(evt, src_id, dst_id, cmd_id, data, data_len);
+    gateway_event_create_ref(evt, src_id, dst_id, cmd_id, data, data_len);
+    if (data_len > 0)
+    {
+        evt->data = malloc(data_len);
+        memcpy(evt->data, data, data_len);
+    }
+    return pdTRUE;
 }
 
 void gateway_event_free(gateway_event_t *evt)
 {
-    free(evt->data);
+    if (evt->data_len)
+    {
+        free(evt->data);
+    } 
 }

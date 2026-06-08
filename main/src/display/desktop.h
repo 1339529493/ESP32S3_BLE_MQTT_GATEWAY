@@ -3,9 +3,9 @@
 
 #include "smf.h"
 // 引入 GUI Guider 生成的头文件
-#include "desktop/generated/gui_guider.h"
-#include "desktop/generated/events_init.h"
-#include "desktop/custom/custom.h"
+#include "gui_guider.h"
+#include "events_init.h"
+#include "custom.h"
 
 // 定义用户对象结构，用于在状态机中传递数据
 struct desktop_data {

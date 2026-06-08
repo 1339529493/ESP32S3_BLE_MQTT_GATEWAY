@@ -2,31 +2,6 @@
 #include "gw_log.h"
 
 /**
- * @brief       链接显示
- * @param       flag:2->链接;1->链接失败;0->再链接中
- * @retval      无
- */
-void connet_display(uint8_t flag)
-{
-    if (flag == 2)
-    {
-        // spilcd_fill(0, 90, 320, 240, WHITE);
-        // sprintf(lcd_buff, "ssid:%s", DEFAULT_SSID);
-        // spilcd_show_string(0, 90, 240, 16, 16, lcd_buff, BLUE);
-        // sprintf(lcd_buff, "psw:%s", DEFAULT_PWD);
-        // spilcd_show_string(0, 110, 240, 16, 16, lcd_buff, BLUE);
-    }
-    else if (flag == 1)
-    {
-        // spilcd_show_string(0, 90, 240, 16, 16, "wifi connecting fail", BLUE);
-    }
-    else
-    {
-        // spilcd_show_string(0, 90, 240, 16, 16, "wifi connecting......", BLUE);
-    }
-}
-
-/**
  * @brief       身份认证模式
  * @param       authmode :身份验证模式
  * @retval      无

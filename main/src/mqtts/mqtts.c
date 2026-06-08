@@ -65,7 +65,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             if (gateway_event_create(&msg, MODULE_ID_MQTT, MODULE_ID_BLE, CMD_MQTT_TO_BLE_NOTIFY, event->data, event->data_len) != pdTRUE ||
                 gateway_event_send(MODULE_ID_BLE, &msg, pdMS_TO_TICKS(100)) != pdTRUE) 
             {
-                LOGW(MQTTS_TAG, "MQTT to BLE Queue Full!");
+                LOGE(MQTTS_TAG, "MQTT to BLE Queue Full! data: %*.s",event->data, event->data_len);
             }
             break;
         case MQTT_EVENT_ERROR:

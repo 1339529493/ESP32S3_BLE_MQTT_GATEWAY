@@ -24,7 +24,11 @@ typedef struct {
     module_id_t src_id;       // 来源模块
     module_id_t dst_id;       // 目标模块 (MODULE_ID_MAX 表示广播或网关处理)
     uint32_t cmd_id;          // 具体命令字 (由各个模块自己定义)
-    void *data;               // 数据指针 (注意内存管理，通常由发送者 malloc，接收者 free)
+    // void *data;               // 数据指针 (注意内存管理，通常由发送者 malloc，接收者 free)
+    union {
+        void *data;
+        uint16_t key_code;        // 按键码
+    };
     uint16_t data_len;        // 数据长度
 
     uint32_t timestamp; // 可选：用于调试或时序分析
@@ -60,6 +64,17 @@ BaseType_t gateway_event_create(gateway_event_t *evt, module_id_t src_id, module
 BaseType_t gateway_event_create_ref(gateway_event_t *evt, module_id_t src_id, module_id_t dst_id, uint32_t cmd_id, void *data, uint16_t data_len);
 
 void gateway_event_free(gateway_event_t *evt);
+
+// 创建事件包
+#define GATEWAY_EVENT_INIT_CMD(evt, src, dst, cmd, val) \
+    do { \
+        (evt)->src_id = (src); \
+        (evt)->dst_id = (dst); \
+        (evt)->cmd_id = (cmd); \
+        (evt)->key_code = (val); \
+        (evt)->data_len = 0; \
+        (evt)->timestamp = xTaskGetTickCount(); \
+    } while(0)
 
 /**
  * @brief 获取指定模块的事件队列句柄 (供模块内部任务使用)

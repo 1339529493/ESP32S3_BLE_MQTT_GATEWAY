@@ -2,8 +2,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-// 包含你的 UI 头文件，假设是 desktop.h
-#include "../display/desktop/desktop.h" 
+// 包含你的 UI 头文件
+
 
 static const char *TAG = "STATUS_MGR";
 static system_status_t g_sys_status = {0};

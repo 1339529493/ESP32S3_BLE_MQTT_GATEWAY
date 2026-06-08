@@ -1,6 +1,9 @@
 #ifndef __GATEWAY_CMD_H
 #define __GATEWAY_CMD_H
 
+#include "gateway_status.h"
+#include "gateway_event.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

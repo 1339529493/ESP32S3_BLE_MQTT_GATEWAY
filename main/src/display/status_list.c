@@ -1,12 +1,8 @@
-#include "ui.h"
-#include "menu.h"
+#include "status_list.h"
 
-#include "desktop.h"
-#include "key_scan.h"
-
-void menu_entry(void *obj)
+void status_list_entry(void *obj)
 {
-    struct desktop_data *u_obj = (struct desktop_data *)obj;
+    struct status_list_data *u_obj = (struct status_list_data *)obj;
     
     u_obj->guider_ui = &guider_ui;
     // 1. 初始化 GUI 结构体中的屏幕删除标志等
@@ -23,12 +19,12 @@ void menu_entry(void *obj)
     events_init(u_obj->guider_ui);
 }
 
-enum smf_state_result menu_run(void *obj)
+enum smf_state_result status_list_run(void *obj)
 {
     return 0;
 }
 
-void menu_exit(void *obj)
+void status_list_exit(void *obj)
 {
     // 如果需要切换屏幕，可以在这里清理当前屏幕
     lv_obj_clean(lv_screen_active());

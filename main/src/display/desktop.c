@@ -12,17 +12,17 @@ void desktop_entry(void *obj)
     struct desktop_data *u_obj = (struct desktop_data *)obj;
     
     u_obj->guider_ui = &guider_ui;
-    // 1. 初始化 GUI 结构体中的屏幕删除标志等
-    init_scr_del_flag(u_obj->guider_ui);
+    // // 1. 初始化 GUI 结构体中的屏幕删除标志等
+    // init_scr_del_flag(u_obj->guider_ui);
     
-    // 2. 设置并加载主屏幕
+    // 设置并加载主屏幕
     // setup_ui 会调用 setup_scr_screen 并加载屏幕
     setup_ui_desktop(u_obj->guider_ui);
     
-    // 3. 初始化自定义部分（如果有字体或额外样式）
+    // 初始化自定义部分（如果有字体或额外样式）
     custom_init(u_obj->guider_ui);
     
-    // 4. 初始化事件绑定
+    // 初始化事件绑定
     events_init(u_obj->guider_ui);
 }
 
@@ -33,11 +33,11 @@ void desktop_entry(void *obj)
 enum smf_state_result desktop_run(void *obj)
 {
     // 保持状态继续运行
-    key_scan_msg_t key_scan_msg;
-    if (xQueueReceive(key_scan_q,&key_scan_msg,0) == pdTRUE)
-    {
-        smf_set_state(SMF_CTX(obj), &menu);
-    }
+    // key_scan_msg_t key_scan_msg;
+    // if (xQueueReceive(key_scan_q,&key_scan_msg,0) == pdTRUE)
+    // {
+    //     smf_set_state(SMF_CTX(obj), &menu);
+    // }
     return 0;
 }
 

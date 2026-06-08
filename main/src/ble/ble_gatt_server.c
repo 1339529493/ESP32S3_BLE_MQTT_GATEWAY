@@ -251,7 +251,7 @@ static void gatts_profile_gateway_event_handler(esp_gatts_cb_event_t event, esp_
         // 发送队列，阻塞等待确保数据不丢失，或者使用 xQueueSendWithTimeout
         if (gateway_event_create(&msg, MODULE_ID_BLE, MODULE_ID_MQTT, CMD_BLE_TO_MQTT_PUBLISH, param->write.value, param->write.len) != pdTRUE ||
             gateway_event_send(MODULE_ID_MQTT, &msg, pdMS_TO_TICKS(100)) != pdTRUE) {
-            LOGE(GATTS_TAG, "BLE to MQTT Queue Full!");
+            LOGE(GATTS_TAG, "BLE to MQTT Queue Full! data: %*.s",param->write.value, param->write.len);
         }
         break;
     }

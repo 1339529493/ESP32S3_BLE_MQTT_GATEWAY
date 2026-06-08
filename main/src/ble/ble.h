@@ -1,8 +1,6 @@
 #ifndef __BLE_H
 #define __BLE_H
 
-#include "gateway_status.h"
-#include "gateway_event.h"
 #include "gateway_cmd.h"
 #include "gw_log.h"
 
