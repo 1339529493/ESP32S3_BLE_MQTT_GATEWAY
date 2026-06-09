@@ -19,7 +19,7 @@ void app_main(void)
         ESP_ERROR_CHECK(nvs_flash_erase());
         ESP_ERROR_CHECK(nvs_flash_init());
     }
-    status_mgr_init();
+    
     lv_lcd_init();
     gateway_event_bus_init();
     wifi_sta_init();

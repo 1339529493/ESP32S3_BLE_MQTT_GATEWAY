@@ -12,7 +12,7 @@ void ble_task(void *pvParameter)
             LOGI(GATTC_TAG, "Received from MQTT, sending to BLE Notify");
             // 调用 BLE 接口发送 Notify 给手机
             ble_send_notify(msg.data, msg.data_len);
-            // gateway_event_free(&msg);
+            gateway_event_free(&msg);
         }
         
         // 注意：BLE 接收数据是在 GATT 回调中发生的，需要在回调中发送队列

@@ -6,14 +6,14 @@
 void key_scan_task(void *pvParameter)
 {
     gateway_event_t msg;
-    uint16_t key_code;
+    uint32_t key_code;
     while (1)
     {
         key_code = xl9555_key_scan(0);
         if (key_code)
         {
             GATEWAY_EVENT_INIT_CMD(&msg, MODULE_ID_KEY, MODULE_ID_UI, CMD_UI_NONE, key_code);
-            if (gateway_event_send(MODULE_ID_BLE, &msg, pdMS_TO_TICKS(100)) != pdTRUE) 
+            if (gateway_event_send(MODULE_ID_KEY, &msg, pdMS_TO_TICKS(100)) != pdTRUE) 
             {
                 LOGE(KEY_SCAN_TAG, "KEY to UI Queue Full! key : %d",key_code);
             }
