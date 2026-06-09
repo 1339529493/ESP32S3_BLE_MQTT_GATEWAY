@@ -1,4 +1,4 @@
-#include "menu.h"
+#include "ui.h"
 
 void menu_entry(void *obj)
 {

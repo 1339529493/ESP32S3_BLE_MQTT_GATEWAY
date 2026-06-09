@@ -47,7 +47,18 @@ extern int desktop_analog_clock_1_hour_value;
 extern int desktop_analog_clock_1_min_value;
 extern int desktop_analog_clock_1_sec_value;
 
-void custom_init(lv_ui *ui)
+// 定义一个静态定时器指针
+static lv_timer_t *clock_timer = NULL;
+
+/**
+ * @brief LVGL 定时器回调函数：每秒更新一次时间
+ */
+static void clock_update_cb(lv_timer_t *timer)
+{
+   //更新日期
+}
+
+void custom_init_desktop(lv_ui *ui)
 {
     time_t now;
     struct tm timeinfo;
@@ -63,17 +74,24 @@ void custom_init(lv_ui *ui)
     if (ui->desktop_datetext_1) {
         lv_label_set_text(ui->desktop_datetext_1, strftime_buf);
     }
+
+    // 2. 创建 LVGL 定时器，每 1000ms (1秒) 执行一次
+    // 如果定时器已存在，先删除（防止重复创建）
+    // if (clock_timer) {
+    //     lv_timer_del(clock_timer);
+    // }
+    // clock_timer = lv_timer_create(clock_update_cb, 1000, ui);
 }
 
-void custom_ing(lv_ui *ui)
+void custom_ing_desktop(lv_ui *ui)
 {
-    if (desktop_digital_clock_1_hour_value == 0 && desktop_digital_clock_1_min_value == 0 && desktop_digital_clock_1_sec_value == 0) {
 
-    }
 }
-void custom_deinit(lv_ui *ui)
+void custom_deinit_desktop(lv_ui *ui)
 {
-
+    // if (clock_timer) {
+    //     lv_timer_del(clock_timer);
+    // }
 }
 
 void setup_ui_desktop(lv_ui *ui)
@@ -85,6 +103,19 @@ void setup_ui_desktop(lv_ui *ui)
     lv_screen_load(ui->desktop);
 }
 
+void custom_init_status_list(lv_ui *ui)
+{
+
+}
+
+void custom_ing_status_list(lv_ui *ui)
+{
+
+}
+void custom_deinit_status_list(lv_ui *ui)
+{
+
+}
 void setup_ui_status_list(lv_ui *ui)
 {
     setup_bottom_layer();

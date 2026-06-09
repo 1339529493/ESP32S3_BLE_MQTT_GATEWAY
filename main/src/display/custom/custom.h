@@ -17,8 +17,13 @@ extern "C" {
 
 extern lv_ui guider_ui;
 
-void custom_init(lv_ui *ui);
+void custom_init_desktop(lv_ui *ui);
+void custom_ing_desktop(lv_ui *ui);
+void custom_deinit_desktop(lv_ui *ui);
 void setup_ui_desktop(lv_ui *ui);
+void custom_init_status_list(lv_ui *ui);
+void custom_ing_status_list(lv_ui *ui);
+void custom_deinit_status_list(lv_ui *ui);
 void setup_ui_status_list(lv_ui *ui);
 
 #ifdef __cplusplus

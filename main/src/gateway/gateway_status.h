@@ -11,7 +11,8 @@ typedef enum {
     STATUS_CONNECTING,
     STATUS_CONNECTED,
     STATUS_RECONNECT,
-    STATUS_ERROR
+    STATUS_ERROR,
+    STATUS_MAX
 } conn_status_t;
 
 // 系统全局状态结构体

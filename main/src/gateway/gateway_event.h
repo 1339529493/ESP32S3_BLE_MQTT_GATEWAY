@@ -27,7 +27,7 @@ typedef struct {
     // void *data;               // 数据指针 (注意内存管理，通常由发送者 malloc，接收者 free)
     union {
         void *data;
-        uint16_t key_code;        // 按键码
+        uint32_t short_msg;        // 按键码/状态值
     };
     uint16_t data_len;        // 数据长度
 
@@ -71,7 +71,7 @@ void gateway_event_free(gateway_event_t *evt);
         (evt)->src_id = (src); \
         (evt)->dst_id = (dst); \
         (evt)->cmd_id = (cmd); \
-        (evt)->key_code = (val); \
+        (evt)->short_msg = (val); \
         (evt)->data_len = 0; \
         (evt)->timestamp = xTaskGetTickCount(); \
     } while(0)

@@ -47,12 +47,17 @@ typedef enum {
 typedef enum {
     CMD_UI_NONE = 0,
     
-    // MQTT -> UI: 更新屏幕上的连接状态图标
-    CMD_MQTT_TO_UI_UPDATE_STATUS = 0x3001,
+    // 更新屏幕上的连接状态图标
+    CMD_UI_UPDATE_STATUS = 0x3001,
     
     // KEY -> UI: 按键触发页面跳转
     CMD_KEY_TO_UI_SWITCH_PAGE = 0x3002,
 } ui_cmd_id_t;
+
+#define KEY_1 0x01
+#define KEY_2 0x02
+#define KEY_3 0x03
+#define KEY_4 0x04
 
 #ifdef __cplusplus
 }
