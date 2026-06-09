@@ -23,7 +23,7 @@ enum smf_state_result status_list_run(void *obj)
     {
         // 3. 清除按键标志，防止重复触发
         CLR_KEY_FLAG(u_obj, KEY_2);
-        smf_set_state(SMF_CTX(u_obj), &status_list);
+        smf_set_state(SMF_CTX(u_obj), &desktop);
         return SMF_EVENT_HANDLED;
     }
 

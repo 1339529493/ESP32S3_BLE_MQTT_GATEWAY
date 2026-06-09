@@ -7,15 +7,14 @@
 
 static const char *TAG = "STATUS_MGR";
 static system_status_t g_sys_status = {0};
-
 system_status_t* get_system_status(void) {
     return &g_sys_status;
 }
 
 // 通用更新函数
 static void update_status(conn_status_t *target, conn_status_t new_status, module_id_t module_name) {
-    // if (target != new_status) {
-    //     target = new_status;
+    // if (*target != new_status) {
+    //     *target = new_status;
     //     LOGI(TAG, "%s status changed to %d", module_name, new_status);
     //     gateway_event_t msg;
     //     GATEWAY_EVENT_INIT_CMD(&msg, module_name, MODULE_ID_UI, CMD_UI_UPDATE_STATUS, 0);

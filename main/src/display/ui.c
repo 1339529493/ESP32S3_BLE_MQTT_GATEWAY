@@ -45,6 +45,6 @@ void ui_task(void *pvParameter)
                     break;
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(5));         /* 短暂等待，让系统喘息 */
+        vTaskDelay(pdMS_TO_TICKS(10));         /* 短暂等待，让系统喘息 */
     }
 }

@@ -9,9 +9,9 @@
 
 const char *WIFI_TAG = "static_ip";
 /* 链接wifi名称 */
-#define DEFAULT_SSID "xxx"
+#define DEFAULT_SSID "14-8-404"
 /* wifi密码 */
-#define DEFAULT_PWD "xxx"
+#define DEFAULT_PWD "lh1999517"
 /* 事件标志 */
 static EventGroupHandle_t wifi_event;
 #define WIFI_CONNECTED_BIT BIT0
@@ -56,7 +56,7 @@ static void obtain_time(void) {
     
     // 等待同步
     int retry = 0;
-    const int retry_count = 15;
+    const int retry_count = 3;
     while (sntp_get_sync_status() != SNTP_SYNC_STATUS_COMPLETED && retry++ < retry_count) {
         LOGI(WIFI_TAG, "Waiting for time sync... (%d/%d)", retry, retry_count);
         vTaskDelay(2000 / portTICK_PERIOD_MS);
@@ -99,7 +99,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
         // 1. 构造停止 MQTT 的事件
-        gateway_event_create_ref(&evt, MODULE_ID_WIFI, MODULE_ID_MQTT, CMD_WIFI_TO_MQTT_STOP, NULL, 0);
+        GATEWAY_EVENT_INIT_CMD(&evt, MODULE_ID_WIFI, MODULE_ID_MQTT, CMD_WIFI_TO_MQTT_STOP, 0);
         // 2. 发送给 MQTT 模块
         // 注意：这里使用 send，如果队列满可能会失败，但对于控制指令通常没问题
         gateway_event_send(MODULE_ID_MQTT, &evt, pdMS_TO_TICKS(100));
@@ -128,7 +128,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         s_retry_num = 0;
         update_wifi_status(STATUS_CONNECTED);
         // 1. 构造启动 MQTT 的事件
-        gateway_event_create_ref(&evt, MODULE_ID_WIFI, MODULE_ID_MQTT, CMD_WIFI_TO_MQTT_START, NULL, 0);
+        GATEWAY_EVENT_INIT_CMD(&evt, MODULE_ID_WIFI, MODULE_ID_MQTT, CMD_WIFI_TO_MQTT_START, 0);
         // 2. 发送给 MQTT 模块
         gateway_event_send(MODULE_ID_MQTT, &evt, pdMS_TO_TICKS(100));
 

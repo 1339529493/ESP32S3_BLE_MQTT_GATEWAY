@@ -73,7 +73,6 @@ void gateway_event_free(gateway_event_t *evt);
         (evt)->cmd_id = (cmd); \
         (evt)->short_msg = (val); \
         (evt)->data_len = 0; \
-        (evt)->timestamp = xTaskGetTickCount(); \
     } while(0)
 
 /**
