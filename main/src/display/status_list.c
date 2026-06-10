@@ -1,6 +1,5 @@
 #include "ui.h"
 
-char status_str[16];
 void status_list_entry(void *obj)
 {
     struct user_object *u_obj = (struct user_object *)obj;
@@ -41,42 +40,25 @@ void status_list_exit(void *obj)
     lv_obj_clean(lv_screen_active());
 }
 
-char *get_system_status_string(conn_status_t status)
-{
-    switch (status)
-    {
-    case STATUS_CONNECTED:
-        strcpy(status_str, "connected");
-        break;
-    case STATUS_CONNECTING:
-        strcpy(status_str, "connecting");
-        break;
-    case STATUS_DISCONNECTED:
-        strcpy(status_str, "disconnected");
-        break;
-    case STATUS_ERROR:
-        strcpy(status_str, "error");
-    default:
-        break;
-    }
-    return status_str;
-}
+extern char status_str[][16];
 void lv_update_connection_icons(void *obj, module_id_t target)
 {
     lv_ui *ui = ((struct user_object *)obj)->guider_ui;
     system_status_t *sys_status = get_system_status();
+    LOGI("status_list", "status : %d : %d : %d",sys_status->ble_status,sys_status->mqtt_status,sys_status->wifi_status);
     switch (target)
     {
     case MODULE_ID_BLE:
-        lv_span_set_text(ui->status_list_spangroup_ble_span, get_system_status_string(sys_status->ble_status));
+        lv_span_set_text(ui->status_list_spangroup_ble_span, status_str[sys_status->ble_status]);
+        lv_spangroup_refr_mode(ui->status_list_spangroup_ble);
         break;
     case MODULE_ID_MQTT:
-        lv_span_set_text(ui->status_list_spangroup_mqtt_span, get_system_status_string(sys_status->mqtt_status));
-        /* code */
+        lv_span_set_text(ui->status_list_spangroup_mqtt_span, status_str[sys_status->mqtt_status]);
+        lv_spangroup_refr_mode(ui->status_list_spangroup_mqtt);
         break;
     case MODULE_ID_WIFI:
-        lv_span_set_text(ui->status_list_spangroup_wifi_span, get_system_status_string(sys_status->wifi_status));
-        /* code */
+        lv_span_set_text(ui->status_list_spangroup_wifi_span, status_str[sys_status->wifi_status]);
+        lv_spangroup_refr_mode(ui->status_list_spangroup_wifi);
         break;
 
     default:

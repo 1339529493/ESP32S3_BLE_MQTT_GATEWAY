@@ -27,8 +27,8 @@ void app_main(void)
     // 创建任务，可以将队列句柄作为参数传递，这里简化为全局变量演示
     xTaskCreatePinnedToCore(ui_task, "ui_task", 8192, NULL, 2, NULL,1);
     xTaskCreatePinnedToCore(key_scan_task, "key_scan", 2048, NULL, 3, NULL, 0);
-    // xTaskCreatePinnedToCore(ble_task, "ble_task", 4096, NULL, 5, NULL, 0);
-    // xTaskCreatePinnedToCore(mqtt_task, "mqtt_task", 8192, NULL, 5, NULL, 0);
+    xTaskCreatePinnedToCore(ble_task, "ble_task", 4096, NULL, 5, NULL, 0);
+    xTaskCreatePinnedToCore(mqtt_task, "mqtt_task", 8192, NULL, 5, NULL, 0);
     // http_test();
     while(1) {
         vTaskDelay(pdMS_TO_TICKS(1000));

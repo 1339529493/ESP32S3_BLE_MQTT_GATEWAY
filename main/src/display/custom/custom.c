@@ -37,6 +37,7 @@
 
 #include "time.h"
 #include "gw_log.h"
+#include "gateway_status.h"
 #define TAG "DISPLAY"
 
 lv_ui guider_ui;
@@ -103,9 +104,14 @@ void setup_ui_desktop(lv_ui *ui)
     lv_screen_load(ui->desktop);
 }
 
+char status_str[][16] = {"disconnected", "connecting", "ok", "reconnected","error"};
+
 void custom_init_status_list(lv_ui *ui)
 {
-
+    system_status_t *sys_status = get_system_status();
+    lv_span_set_text(ui->status_list_spangroup_ble_span, status_str[sys_status->ble_status]);
+    lv_span_set_text(ui->status_list_spangroup_mqtt_span, status_str[sys_status->mqtt_status]);
+    lv_span_set_text(ui->status_list_spangroup_wifi_span, status_str[sys_status->wifi_status]);
 }
 
 void custom_ing_status_list(lv_ui *ui)

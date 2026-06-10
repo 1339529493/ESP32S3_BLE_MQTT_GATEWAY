@@ -102,7 +102,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         GATEWAY_EVENT_INIT_CMD(&evt, MODULE_ID_WIFI, MODULE_ID_MQTT, CMD_WIFI_TO_MQTT_STOP, 0);
         // 2. 发送给 MQTT 模块
         // 注意：这里使用 send，如果队列满可能会失败，但对于控制指令通常没问题
-        gateway_event_send(MODULE_ID_MQTT, &evt, pdMS_TO_TICKS(100));
+        gateway_event_send(MODULE_ID_MQTT, &evt, 0);
 
         /* 尝试连接 20次重连尝试*/
         if (s_retry_num < RECONNECT_MAX_RETRY_NUMBER)
@@ -130,7 +130,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         // 1. 构造启动 MQTT 的事件
         GATEWAY_EVENT_INIT_CMD(&evt, MODULE_ID_WIFI, MODULE_ID_MQTT, CMD_WIFI_TO_MQTT_START, 0);
         // 2. 发送给 MQTT 模块
-        gateway_event_send(MODULE_ID_MQTT, &evt, pdMS_TO_TICKS(100));
+        gateway_event_send(MODULE_ID_MQTT, &evt, 0);
 
         obtain_time();
         xEventGroupSetBits(wifi_event, WIFI_CONNECTED_BIT);

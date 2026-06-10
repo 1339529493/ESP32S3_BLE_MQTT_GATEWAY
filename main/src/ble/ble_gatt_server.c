@@ -293,9 +293,11 @@ static void gatts_profile_gateway_event_handler(esp_gatts_cb_event_t event, esp_
         gl_profile_tab[PROFILE_GATEWAY_APP_ID].conn_id = param->connect.conn_id;
         //start sent the update connection parameters to the peer device.
         esp_ble_gap_update_conn_params(&conn_params);
+        update_ble_status(STATUS_CONNECTED);
         break;
     }
     case ESP_GATTS_DISCONNECT_EVT:  //断开连接
+        update_ble_status(STATUS_DISCONNECTED);
         LOGI(GATTS_TAG, "Disconnected, remote "ESP_BD_ADDR_STR", reason 0x%02x",
                  ESP_BD_ADDR_HEX(param->disconnect.remote_bda), param->disconnect.reason);
         esp_ble_gap_start_advertising(&adv_params);
