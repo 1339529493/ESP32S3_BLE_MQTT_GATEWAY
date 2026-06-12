@@ -26,5 +26,5 @@ set(GATEWAY_SRCS ${MQTT_SRCS} ${WIFI_SRCS} ${BLE_SRCS} ${KEY_SRCS} ${GATEWAY_SRC
 set(GATEWAY_INCLUDE ${MQTT_INCLUDE} ${WIFI_INCLUDE} ${BLE_INCLUDE} ${KEY_INCLUDE} ${GATEWAY_INCLUDE} ${UTIL_INCLUDE} ${UI_INCLUDE})
 
 idf_component_register(SRCS "main.c" ${GATEWAY_SRCS}
-                    REQUIRES bt nvs_flash mqtt esp_http_client BSP
+                    REQUIRES bt nvs_flash mqtt esp_http_client BSP json
                     INCLUDE_DIRS "." ${GATEWAY_INCLUDE})

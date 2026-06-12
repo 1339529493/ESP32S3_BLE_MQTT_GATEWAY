@@ -11,7 +11,7 @@ void mqtt_task(void *pvParameter)
     while(1) {
         // 2. 等待来自 BLE 的数据并上报
         if (gateway_event_receive(MODULE_ID_MQTT, &msg, portMAX_DELAY) == pdTRUE) {
-            LOGI(MQTTS_TAG, "Received from BLE, len: %d", msg.data_len);
+            LOGI(MQTTS_TAG, "MQTT EVT : Received from %d, len: %d",msg.src_id ,msg.data_len);
             
             switch (msg.cmd_id) {
                 
@@ -38,13 +38,13 @@ void mqtt_task(void *pvParameter)
                     // 原有的 BLE 数据上报逻辑
                     if (msg.data) {
                         mqtts_publish((char *)msg.data, msg.data_len, 0, 0);
-                        gateway_event_free(&msg);
                     }
                     break;
                     
                 default:
                     break;
             }
+            gateway_event_free(&msg);
         }
     }
 }

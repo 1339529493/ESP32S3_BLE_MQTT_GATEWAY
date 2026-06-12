@@ -2,20 +2,30 @@
 #include "gw_log.h"
 #include <string.h>
 #include <stdlib.h>
+#include "memory_pool.h"
 
 static const char *TAG = "GW_BUS";
 
 // 为每个模块创建一个队列
 static QueueHandle_t s_module_queues[MODULE_ID_MAX];
-
+memory_pool *data_pool = NULL;
+#define DATAPOOL_LEN 512
+#define DATAPOOL_NUM 10
 void gateway_event_bus_init(void)
 {
+    int ret;
     for (int i = 0; i < MODULE_ID_MAX; i++) {
         // 每个模块队列深度 10，存储的是 gateway_event_t 结构体（包含指针）
         s_module_queues[i] = xQueueCreate(10, sizeof(gateway_event_t));
         if (s_module_queues[i] == NULL) {
             LOGE(TAG, "Failed to create queue for module %d", i);
         }
+    }
+    data_pool = malloc(sizeof(memory_pool));
+    ret = mp_init(data_pool, DATAPOOL_LEN, DATAPOOL_NUM);
+    if (ret)
+    {
+        LOGE(TAG, "Failed to init data pool, error : %d",ret);
     }
     LOGI(TAG, "Event Bus Initialized");
 }
@@ -63,7 +73,7 @@ BaseType_t gateway_event_create(gateway_event_t *evt, module_id_t src_id, module
     gateway_event_create_ref(evt, src_id, dst_id, cmd_id, data, data_len);
     if (data_len > 0)
     {
-        evt->data = malloc(data_len);
+        evt->data = mp_alloc(data_pool, data_len);
         memcpy(evt->data, data, data_len);
     }
     return pdTRUE;
@@ -71,8 +81,10 @@ BaseType_t gateway_event_create(gateway_event_t *evt, module_id_t src_id, module
 
 void gateway_event_free(gateway_event_t *evt)
 {
-    if (evt->data_len)
+    if (evt->data_len > 0 && evt->data != NULL)
     {
-        free(evt->data);
-    } 
+        mp_free(data_pool, evt->data);
+        evt->data = NULL;
+        evt->data_len = 0;
+    }  
 }

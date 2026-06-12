@@ -30,7 +30,7 @@ void ui_task(void *pvParameter)
         }
 
         if (gateway_event_receive(MODULE_ID_UI, &msg, 0) == pdTRUE) {
-            LOGD(UI_TAG, "Received from %d, len: %d", msg.src_id, msg.data_len);
+            LOGD(UI_TAG, "UI EVT : from %d, len: %d", msg.src_id, msg.data_len);
             switch (msg.cmd_id) {                
                 case CMD_UI_NONE:
                     if (msg.src_id == MODULE_ID_KEY)
@@ -44,6 +44,7 @@ void ui_task(void *pvParameter)
                 default:
                     break;
             }
+            gateway_event_free(&msg);
         }
         vTaskDelay(pdMS_TO_TICKS(10));         /* 短暂等待，让系统喘息 */
     }

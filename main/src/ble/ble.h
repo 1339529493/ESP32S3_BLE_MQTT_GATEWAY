@@ -2,9 +2,10 @@
 #define __BLE_H
 
 #include "gateway_cmd.h"
+#include "esp_gatts_api.h"
 #include "gw_log.h"
 
-extern const char *GATTC_TAG;
+extern const char *GATTS_TAG;
 
 enum {
     GW_SVC_IDX,
@@ -19,5 +20,6 @@ enum {
 void ble_init(void);
 int ble_send_notify(uint8_t *data, int len);
 void ble_task(void *pvParameter);
+void gateway_control_channel_hander(esp_gatts_cb_event_t event, esp_ble_gatts_cb_param_t *param);
 
 #endif

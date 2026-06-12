@@ -8,28 +8,16 @@
 #include "gw_log.h"
 
 const char *WIFI_TAG = "static_ip";
-/* 链接wifi名称 */
-#define DEFAULT_SSID "14-8-404"
-/* wifi密码 */
-#define DEFAULT_PWD "lh1999517"
-/* 事件标志 */
+
 static EventGroupHandle_t wifi_event;
-#define WIFI_CONNECTED_BIT BIT0
-#define WIFI_FAIL_BIT BIT1
+#define WIFI_START_BIT BIT0
 
-#define RECONNECT_MAX_RETRY_NUMBER 20
-
-char lcd_buff[100] = {0};
-
-/* WIFI默认配置 */
-#define WIFICONFIG() {                            \
-    .sta = {                                      \
-        .ssid = DEFAULT_SSID,                     \
-        .password = DEFAULT_PWD,                  \
-        .threshold.authmode = WIFI_AUTH_WPA2_PSK, \
-    },                                            \
-}
-#define DEFAULT_SCAN_LIST_SIZE  12
+#define RECONNECT_MAX_RETRY_NUMBER 2
+#define BLE_SET_NET_FLAG -1
+#define RESET_RETRYNUM 0
+static int s_retry_num = RESET_RETRYNUM;
+char ssid[32];
+char pwd[64];
 
 // 设置时区：北京时间 UTC+8
 static void set_timezone(void) {
@@ -38,7 +26,12 @@ static void set_timezone(void) {
 }
 
 // 初始化SNTP
-static void initialize_sntp(void) {
+static int initialize_sntp(void) {
+    static bool sntp_initialized = false;  // 静态标志位，只初始化一次
+    if (sntp_initialized) {
+        LOGI(WIFI_TAG, "SNTP already initialized, skipping");
+        return 1;
+    }
     LOGI(WIFI_TAG, "Initializing SNTP");
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
     
@@ -47,19 +40,28 @@ static void initialize_sntp(void) {
     sntp_setservername(1, "time.apple.com");
     sntp_setservername(2, "ntp.aliyun.com");
     
-    sntp_init();
+    // 设置同步间隔（单位：毫秒），默认1小时
+    sntp_set_sync_interval(60 * 60 * 1000);  // 1 小时
+    esp_sntp_init();
+    sntp_initialized = true;
+    return 0;
 }
 
 // 等待时间同步完成
 static void obtain_time(void) {
-    initialize_sntp();
-    
+    if (initialize_sntp())
+    {
+        esp_sntp_stop();  
+        vTaskDelay(pdMS_TO_TICKS(500));
+        esp_sntp_init(); 
+    }
+
     // 等待同步
     int retry = 0;
     const int retry_count = 3;
     while (sntp_get_sync_status() != SNTP_SYNC_STATUS_COMPLETED && retry++ < retry_count) {
         LOGI(WIFI_TAG, "Waiting for time sync... (%d/%d)", retry, retry_count);
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
     
     if (retry >= retry_count) {
@@ -72,7 +74,7 @@ static void obtain_time(void) {
 }
 
 /**
- * @brief       WIFI链接糊掉函数
+ * @brief       WIFI链接回调函数
  * @param       arg:传入网卡控制块
  * @param       event_base:WIFI事件
  * @param       event_id:事件ID
@@ -81,14 +83,12 @@ static void obtain_time(void) {
  */
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
-    static int s_retry_num = 0;
     gateway_event_t evt;
-
+    LOGD(WIFI_TAG, "event_id:%d", event_id);
     /* 扫描到要连接的WIFI事件 */
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
-        update_wifi_status(STATUS_CONNECTING);
-        esp_wifi_connect();
+        xEventGroupSetBits(wifi_event, WIFI_START_BIT);
     }
     /* 连接WIFI事件 (表示 Wi-Fi 链路已打通,但还没有获取到 IP 地址)*/
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED)
@@ -98,16 +98,19 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     /* 连接WIFI失败事件 */
     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
-        // 1. 构造停止 MQTT 的事件
-        GATEWAY_EVENT_INIT_CMD(&evt, MODULE_ID_WIFI, MODULE_ID_MQTT, CMD_WIFI_TO_MQTT_STOP, 0);
-        // 2. 发送给 MQTT 模块
-        // 注意：这里使用 send，如果队列满可能会失败，但对于控制指令通常没问题
-        gateway_event_send(MODULE_ID_MQTT, &evt, 0);
+        wifi_event_sta_disconnected_t *disconn = (wifi_event_sta_disconnected_t*)event_data;
+        LOGE(WIFI_TAG, "Wi-Fi断开! 原因码: %d", disconn->reason);
 
         /* 尝试连接 20次重连尝试*/
-        if (s_retry_num < RECONNECT_MAX_RETRY_NUMBER)
+        if (s_retry_num < RECONNECT_MAX_RETRY_NUMBER && s_retry_num >= 0 )
         {
-            if (!s_retry_num) update_wifi_status(STATUS_RECONNECT);
+            if (!s_retry_num)
+            {
+                update_wifi_status(STATUS_RECONNECT);
+                // 停止 MQTT 的事件
+                GATEWAY_EVENT_INIT_CMD(&evt, MODULE_ID_WIFI, MODULE_ID_MQTT, CMD_WIFI_TO_MQTT_STOP, 0);
+                gateway_event_send(MODULE_ID_MQTT, &evt, 0);
+            }
             esp_wifi_connect();
             s_retry_num++;
             LOGI(WIFI_TAG, "retry to connect to the AP");
@@ -115,7 +118,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         else
         {
             update_wifi_status(STATUS_DISCONNECTED);
-            xEventGroupSetBits(wifi_event, WIFI_FAIL_BIT);
         }
 
         LOGI(WIFI_TAG, "connect to the AP fail");
@@ -125,7 +127,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
     {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         LOGI(WIFI_TAG, "static ip:" IPSTR, IP2STR(&event->ip_info.ip));
-        s_retry_num = 0;
+        s_retry_num = RESET_RETRYNUM;
         update_wifi_status(STATUS_CONNECTED);
         // 1. 构造启动 MQTT 的事件
         GATEWAY_EVENT_INIT_CMD(&evt, MODULE_ID_WIFI, MODULE_ID_MQTT, CMD_WIFI_TO_MQTT_START, 0);
@@ -133,7 +135,6 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
         gateway_event_send(MODULE_ID_MQTT, &evt, 0);
 
         obtain_time();
-        xEventGroupSetBits(wifi_event, WIFI_CONNECTED_BIT);
     }
 }
 
@@ -156,60 +157,71 @@ void wifi_sta_init(void)
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL));
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    wifi_config_t wifi_config = WIFICONFIG();
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));        //设置要连接的wifi，内部扫描到指定wifi会触发事件，在事件中进行连接
     ESP_ERROR_CHECK(esp_wifi_start());
-    // uint16_t number = DEFAULT_SCAN_LIST_SIZE;            //这部分为扫描显示部分
-    // wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
-    // uint16_t ap_count = 0;
-    // memset(ap_info, 0, sizeof(ap_info));
-    // /* 开始扫描附件的WIFI */
-    // vTaskDelay(pdMS_TO_TICKS(500));     //等待wifi彻底启动
-    // esp_wifi_scan_start(NULL, true);
-    // /* 获取上次扫描中找到的AP数量 */
-    // ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&ap_count));
-    // /* 获取上次扫描中找到的AP列表 */
-    // ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&number, ap_info));
-    // LOGI(WIFI_TAG, "Total APs scanned = %u", ap_count);
-    // /* 下面是打印附件的WIFI信息 */
-    // for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++)
-    // {
-    //     // sprintf(lcd_buff, "%s",ap_info[i].ssid);
-    //     // spilcd_show_string(200, 20 * i, 240, 16, 16, lcd_buff, BLUE);
-    //     LOGI(WIFI_TAG, "SSID \t\t%s", ap_info[i].ssid);
-    //     LOGI(WIFI_TAG, "RSSI \t\t%d", ap_info[i].rssi);
-    //     print_auth_mode(ap_info[i].authmode);
-        
-    //     if (ap_info[i].authmode != WIFI_AUTH_WEP)
-    //     {
-    //         print_cipher_type(ap_info[i].pairwise_cipher, ap_info[i].group_cipher);
-    //     }
-
-    //     LOGI(WIFI_TAG, "Channel \t\t%d\n", ap_info[i].primary);
-    // }
 
     /* 等待链接成功后、ip生成 */
     EventBits_t bits = xEventGroupWaitBits(wifi_event,
-                                           WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+                                           WIFI_START_BIT,
                                            pdFALSE,
                                            pdFALSE,
                                            portMAX_DELAY);
-
     /* 判断连接事件 */
-    if (bits & WIFI_CONNECTED_BIT)
+    if (bits & WIFI_START_BIT)
     {
-        LOGI(WIFI_TAG, "connected to ap SSID:%s password:%s",
-                 DEFAULT_SSID, DEFAULT_PWD);
+        LOGI(WIFI_TAG, "WIFI START");
     }
-    else if (bits & WIFI_FAIL_BIT)
+}
+
+void wifi_task(void *pvParameter)
+{
+    LOGI(WIFI_TAG, "WIFI Task Started");
+    gateway_event_t msg;
+    wifi_config_t wifi_config = {0};
+    esp_err_t err;
+    wifi_sta_init(); 
+    if (ssid[0] != 0 && pwd[0] != 0)    //后面存入flash空间中
     {
-        update_wifi_status(STATUS_DISCONNECTED);
-        LOGI(WIFI_TAG, "Failed to connect to SSID:%s, password:%s",
-                 DEFAULT_SSID, DEFAULT_PWD);
+        LOGI(WIFI_TAG, "设备当前wifi, ssid : [%s] ,password : [%s]",ssid, pwd);
+        memcpy(wifi_config.sta.ssid, ssid, sizeof(ssid));
+        memcpy(wifi_config.sta.password, pwd, sizeof(pwd));
+        wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+        ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));        //设置要连接的wifi，内部扫描到指定wifi会触发事件，在事件中进行连接
+        esp_wifi_connect();
     }
-    else
-    {
-        LOGE(WIFI_TAG, "UNEXPECTED EVENT");
+
+    while(1) {
+        if (gateway_event_receive(MODULE_ID_WIFI, &msg, portMAX_DELAY) == pdTRUE) {
+            LOGI(WIFI_TAG, "WIFI EVT : Received from %d, len: %d",msg.src_id ,msg.data_len);            
+            switch (msg.cmd_id) {                
+                case CMD_BLE_TO_WIFI_PROVISION:
+                    s_retry_num = BLE_SET_NET_FLAG;
+                    memset(&wifi_config, 0, sizeof(wifi_config));
+                    LOGD(WIFI_TAG, "msg : ssid : [%s] ,password : [%s]",((wifi_provision_info_t*)msg.data)->ssid, ((wifi_provision_info_t*)msg.data)->pwd);
+                    memcpy(wifi_config.sta.ssid, ((wifi_provision_info_t*)msg.data)->ssid, sizeof(((wifi_provision_info_t*)msg.data)->ssid));
+                    memcpy(wifi_config.sta.password, ((wifi_provision_info_t*)msg.data)->pwd, sizeof(((wifi_provision_info_t*)msg.data)->pwd));
+                    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+                    // 3. 关键步骤：如果当前已连接或正在连接，先断开
+                    wifi_ap_record_t ap_info;
+                    esp_err_t ret = esp_wifi_sta_get_ap_info(&ap_info);
+                    if (ret == ESP_OK) {
+                        LOGI(WIFI_TAG, "WiFi is currently connected to [%s], disconnecting first...", ap_info.ssid);
+                        esp_wifi_disconnect();
+                        // 等待一小会儿让断开动作生效，避免立即重连时的状态竞争
+                        vTaskDelay(pdMS_TO_TICKS(500)); 
+                        s_retry_num = RESET_RETRYNUM;
+                    } else {
+                        LOGI(WIFI_TAG, "WiFi is not connected, proceeding to connect.");
+                    }
+                case CMD_BLE_TO_WIFI_CONNECT: 
+                    LOGD(WIFI_TAG, "ssid : [%s] ,password : [%s]",wifi_config.sta.ssid, wifi_config.sta.password);
+                    err = esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config);        //设置要连接的wifi，内部扫描到指定wifi会触发事件，在事件中进行连接
+                    esp_wifi_connect();
+                    break;                   
+                default:
+                    break;
+            }
+            gateway_event_free(&msg);
+        }
     }
 }

@@ -20,7 +20,7 @@
 #include "ble.h"
 extern QueueHandle_t ble_to_mqtt_q;
 
-#define GATTS_TAG "GATTS_GATEWAY"
+const char *GATTS_TAG = "GATTS_GATEWAY";
 static void gatts_profile_gateway_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param);
 // uuid : 81416d20c9cd492e9d8b6eeccf8a5622
 #define CHAR_DECLARATION_SIZE   (sizeof(uint8_t))
@@ -246,13 +246,7 @@ static void gatts_profile_gateway_event_handler(esp_gatts_cb_event_t event, esp_
         break;
         }
     case ESP_GATTS_WRITE_EVT: {     //写
-        LOGD(GATTS_TAG, "Characteristic write, conn_id %d, trans_id %" PRIu32 ", handle %d", param->write.conn_id, param->write.trans_id, param->write.handle);
-        gateway_event_t msg;
-        // 发送队列，阻塞等待确保数据不丢失，或者使用 xQueueSendWithTimeout
-        if (gateway_event_create(&msg, MODULE_ID_BLE, MODULE_ID_MQTT, CMD_BLE_TO_MQTT_PUBLISH, param->write.value, param->write.len) != pdTRUE ||
-            gateway_event_send(MODULE_ID_MQTT, &msg, pdMS_TO_TICKS(100)) != pdTRUE) {
-            LOGE(GATTS_TAG, "BLE to MQTT Queue Full! data: %*.s",param->write.value, param->write.len);
-        }
+        gateway_control_channel_hander(event, param);
         break;
     }
     case ESP_GATTS_EXEC_WRITE_EVT:      //服务端发出

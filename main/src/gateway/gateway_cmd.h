@@ -54,6 +54,23 @@ typedef enum {
     CMD_KEY_TO_UI_SWITCH_PAGE = 0x3002,
 } ui_cmd_id_t;
 
+// --- WIFI 相关命令 --- 
+typedef enum { 
+    CMD_WIFI_NONE = 0,
+    
+    // 更新要连接WIFI用户名和密码 
+    CMD_BLE_TO_WIFI_PROVISION = 0x4001,
+
+    // 连接WIFI
+    CMD_BLE_TO_WIFI_CONNECT = 0x4002,
+
+} wifi_cmd_id_t;
+
+typedef struct {
+    char ssid[32];
+    char pwd[64];
+} wifi_provision_info_t;
+
 #define KEY_1 0x01
 #define KEY_2 0x02
 #define KEY_3 0x03
