@@ -8,6 +8,9 @@
 #include "gw_log.h"
 
 const char *WIFI_TAG = "static_ip";
+const char *NVS_NAMESPACE = "storage";     // NVS 命名空间
+const char *NVS_KEY_SSID = "ssid";         // SSID 键名
+const char *NVS_KEY_PWD = "pwd";           // 密码键名
 
 static EventGroupHandle_t wifi_event;
 #define WIFI_START_BIT BIT0
@@ -139,6 +142,66 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 }
 
 /**
+ * @brief 将 WiFi 配置保存到 NVS
+ */
+static void save_wifi_to_nvs(const char *ssid, const char *pwd) {
+    nvs_handle_t my_handle;
+    esp_err_t err;
+
+    err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &my_handle);
+    if (err != ESP_OK) {
+        LOGE(WIFI_TAG, "Error (%s) opening NVS handle!", esp_err_to_name(err));
+        return;
+    }
+    err = nvs_set_str(my_handle, NVS_KEY_SSID, ssid);
+    if (err != ESP_OK) goto error;
+    err = nvs_set_str(my_handle, NVS_KEY_PWD, pwd);
+    if (err != ESP_OK) goto error;
+    err = nvs_commit(my_handle);
+    if (err != ESP_OK) goto error;
+    LOGI(WIFI_TAG, "WiFi config saved to NVS successfully");
+    nvs_close(my_handle);
+    return;
+error:
+    LOGE(WIFI_TAG, "Error (%s) saving WiFi config to NVS", esp_err_to_name(err));
+    nvs_close(my_handle);
+    return;
+}
+
+/**
+ * @brief 从 NVS 加载 WiFi 配置
+ * @param  config: WiFi 配置结构体指针
+ * @return true 如果加载成功，false 如果未找到或出错
+ */
+static bool load_wifi_from_nvs(wifi_config_t *config) {
+    nvs_handle_t my_handle;
+    esp_err_t err;
+    size_t required_size;
+
+    err = nvs_open(NVS_NAMESPACE, NVS_READONLY, &my_handle);
+    if (err != ESP_OK) {
+        LOGW(WIFI_TAG, "Error (%s) opening NVS handle for reading!", esp_err_to_name(err));
+        return false;
+    }
+    required_size = sizeof(config->sta.ssid);
+    err = nvs_get_str(my_handle, NVS_KEY_SSID, (char*)config->sta.ssid, &required_size);
+    if (err != ESP_OK) goto error;
+    required_size = sizeof(config->sta.password);
+    err = nvs_get_str(my_handle, NVS_KEY_PWD, (char*)config->sta.password, &required_size);
+    if (err != ESP_OK) goto error;
+    nvs_close(my_handle);
+    config->sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    LOGI(WIFI_TAG, "Loaded WiFi config from NVS: SSID [%s]", config->sta.ssid);
+    return true;
+
+error:
+    nvs_close(my_handle);
+    LOGW(WIFI_TAG, "No SSID Password found in NVS or error reading it");
+    return false;
+}
+
+
+/**
  * @brief       WIFI初始化
  * @param       无
  * @retval      无
@@ -166,7 +229,6 @@ void wifi_sta_init(void)
                                            pdFALSE,
                                            pdFALSE,
                                            portMAX_DELAY);
-    /* 判断连接事件 */
     if (bits & WIFI_START_BIT)
     {
         LOGI(WIFI_TAG, "WIFI START");
@@ -180,14 +242,14 @@ void wifi_task(void *pvParameter)
     wifi_config_t wifi_config = {0};
     esp_err_t err;
     wifi_sta_init(); 
-    if (ssid[0] != 0 && pwd[0] != 0)    //后面存入flash空间中
-    {
-        LOGI(WIFI_TAG, "设备当前wifi, ssid : [%s] ,password : [%s]",ssid, pwd);
-        memcpy(wifi_config.sta.ssid, ssid, sizeof(ssid));
-        memcpy(wifi_config.sta.password, pwd, sizeof(pwd));
-        wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
-        ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));        //设置要连接的wifi，内部扫描到指定wifi会触发事件，在事件中进行连接
+
+    //尝试从 NVS 加载 WiFi 配置
+    if (load_wifi_from_nvs(&wifi_config)) {
+        LOGI(WIFI_TAG, "设备当前wifi, ssid : [%s] ,password : [%s]", wifi_config.sta.ssid, wifi_config.sta.password);
+        ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));        //设置要连接的wifi
         esp_wifi_connect();
+    } else {
+        LOGI(WIFI_TAG, "No WiFi config found in NVS, waiting for provisioning...");
     }
 
     while(1) {
@@ -201,7 +263,8 @@ void wifi_task(void *pvParameter)
                     memcpy(wifi_config.sta.ssid, ((wifi_provision_info_t*)msg.data)->ssid, sizeof(((wifi_provision_info_t*)msg.data)->ssid));
                     memcpy(wifi_config.sta.password, ((wifi_provision_info_t*)msg.data)->pwd, sizeof(((wifi_provision_info_t*)msg.data)->pwd));
                     wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
-                    // 3. 关键步骤：如果当前已连接或正在连接，先断开
+                   
+                    // 如果当前已连接或正在连接，先断开
                     wifi_ap_record_t ap_info;
                     esp_err_t ret = esp_wifi_sta_get_ap_info(&ap_info);
                     if (ret == ESP_OK) {
@@ -209,13 +272,14 @@ void wifi_task(void *pvParameter)
                         esp_wifi_disconnect();
                         // 等待一小会儿让断开动作生效，避免立即重连时的状态竞争
                         vTaskDelay(pdMS_TO_TICKS(500)); 
-                        s_retry_num = RESET_RETRYNUM;
                     } else {
                         LOGI(WIFI_TAG, "WiFi is not connected, proceeding to connect.");
                     }
+                    s_retry_num = RESET_RETRYNUM;                    
+                    save_wifi_to_nvs(((wifi_provision_info_t*)msg.data)->ssid, ((wifi_provision_info_t*)msg.data)->pwd);
                 case CMD_BLE_TO_WIFI_CONNECT: 
                     LOGD(WIFI_TAG, "ssid : [%s] ,password : [%s]",wifi_config.sta.ssid, wifi_config.sta.password);
-                    err = esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config);        //设置要连接的wifi，内部扫描到指定wifi会触发事件，在事件中进行连接
+                    err = esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config);
                     esp_wifi_connect();
                     break;                   
                 default:
