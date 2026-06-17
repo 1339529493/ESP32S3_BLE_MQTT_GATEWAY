@@ -19,6 +19,12 @@ typedef enum {
     MODULE_ID_MAX
 } module_id_t;
 
+typedef enum {
+    DATA_MALLOC = 0,
+    DATA_REF,
+    DATA_CMD,
+} data_mode_t;
+
 // 通用事件包
 typedef struct {
     module_id_t src_id;       // 来源模块
@@ -31,7 +37,7 @@ typedef struct {
     };
     uint16_t data_len;        // 数据长度
 
-    uint32_t timestamp; // 可选：用于调试或时序分析
+    data_mode_t data_mode;      // 数据模式 
 } gateway_event_t;
 
 /**
@@ -73,6 +79,7 @@ void gateway_event_free(gateway_event_t *evt);
         (evt)->cmd_id = (cmd); \
         (evt)->short_msg = (val); \
         (evt)->data_len = 0; \
+        (evt)->data_mode = DATA_CMD;\
     } while(0)
 
 /**

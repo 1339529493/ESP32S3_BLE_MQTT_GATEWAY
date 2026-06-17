@@ -38,12 +38,7 @@ static char ota_write_data[BUFFSIZE + 1] = {0};
 //         ;
 //     }
 // }
-
-static void task_fatal_error(void)
-{
-    LOGE(OTA_TAG, "Exiting task due to fatal error...");
-    return;
-}
+#define task_fatal_error() return
 
 static void ota_safe_cleanup(esp_ota_handle_t handle, esp_http_client_handle_t client)
 {

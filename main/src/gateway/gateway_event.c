@@ -58,33 +58,40 @@ BaseType_t gateway_event_receive(module_id_t src_id, gateway_event_t *event, Tic
     return xQueueReceive(s_module_queues[src_id], event, timeout);
 }
 
-BaseType_t gateway_event_create_ref(gateway_event_t *evt, module_id_t src_id, module_id_t dst_id, uint32_t cmd_id, void *data, uint16_t data_len)
+static BaseType_t gateway_event_create_mode(gateway_event_t *evt, module_id_t src_id, module_id_t dst_id, uint32_t cmd_id, void *data, uint16_t data_len, data_mode_t data_mode)
 {
     evt->src_id = src_id;
     evt->dst_id = dst_id;
     evt->cmd_id = cmd_id;
-    evt->data = data;
+    if (data_mode) {
+        evt->data = data;
+    } else {
+        evt->data = mp_alloc(data_pool, data_len);
+        if (evt->data == NULL) {
+            LOGE(TAG, "Failed to allocate memory for event data");
+            return pdFALSE;
+        }
+        memcpy(evt->data, data, data_len);
+    }
     evt->data_len = data_len;
     return pdTRUE;
 }
 
+BaseType_t gateway_event_create_ref(gateway_event_t *evt, module_id_t src_id, module_id_t dst_id, uint32_t cmd_id, void *data, uint16_t data_len)
+{
+    return gateway_event_create_mode(evt, src_id, dst_id, cmd_id, data, data_len, DATA_REF);
+}
+
 BaseType_t gateway_event_create(gateway_event_t *evt, module_id_t src_id, module_id_t dst_id, uint32_t cmd_id, void *data, uint16_t data_len)
 {
-    gateway_event_create_ref(evt, src_id, dst_id, cmd_id, data, data_len);
-    if (data_len > 0)
-    {
-        evt->data = mp_alloc(data_pool, data_len);
-        memcpy(evt->data, data, data_len);
-    }
-    return pdTRUE;
+    return gateway_event_create_mode(evt, src_id, dst_id, cmd_id, data, data_len, DATA_MALLOC);
 }
 
 void gateway_event_free(gateway_event_t *evt)
 {
-    if (evt->data_len > 0 && evt->data != NULL)
-    {
+    if (!evt->data_mode) {
         mp_free(data_pool, evt->data);
         evt->data = NULL;
         evt->data_len = 0;
-    }  
+    }
 }

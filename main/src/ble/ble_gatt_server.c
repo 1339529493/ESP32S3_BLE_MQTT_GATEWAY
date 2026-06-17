@@ -288,6 +288,7 @@ static void gatts_profile_gateway_event_handler(esp_gatts_cb_event_t event, esp_
         //start sent the update connection parameters to the peer device.
         esp_ble_gap_update_conn_params(&conn_params);
         update_ble_status(STATUS_CONNECTED);
+        gateway_control_channel_hander(event, param);
         break;
     }
     case ESP_GATTS_DISCONNECT_EVT:  //断开连接
