@@ -64,6 +64,12 @@ typedef enum {
     // 连接WIFI
     CMD_BLE_TO_WIFI_CONNECT = 0x4002,
 
+    // ota升级
+    CMD_BLE_TO_WIFI_OTA_DOWNLOAD = 0x4003,
+
+    // ota手动回滚
+    CMD_BLE_TO_WIFI_OTA_ROLLBACK = 0x4004,
+
 } wifi_cmd_id_t;
 
 typedef struct {

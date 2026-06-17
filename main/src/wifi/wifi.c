@@ -6,9 +6,10 @@
 #include "wifi.h"
 #include "esp_sntp.h"
 #include "gw_log.h"
+#include "ota.h"
 
 const char *WIFI_TAG = "static_ip";
-const char *NVS_NAMESPACE = "storage";     // NVS 命名空间
+const char *NVS_NAMESPACE = "nvs";          // NVS 命名空间
 const char *NVS_KEY_SSID = "ssid";         // SSID 键名
 const char *NVS_KEY_PWD = "pwd";           // 密码键名
 
@@ -19,8 +20,6 @@ static EventGroupHandle_t wifi_event;
 #define BLE_SET_NET_FLAG -1
 #define RESET_RETRYNUM 0
 static int s_retry_num = RESET_RETRYNUM;
-char ssid[32];
-char pwd[64];
 
 // 设置时区：北京时间 UTC+8
 static void set_timezone(void) {
@@ -281,6 +280,12 @@ void wifi_task(void *pvParameter)
                     LOGD(WIFI_TAG, "ssid : [%s] ,password : [%s]",wifi_config.sta.ssid, wifi_config.sta.password);
                     err = esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config);
                     esp_wifi_connect();
+                    break;
+                case CMD_BLE_TO_WIFI_OTA_DOWNLOAD:
+                    ota_start((uint8_t*)msg.data);
+                    break;
+                case CMD_BLE_TO_WIFI_OTA_ROLLBACK:
+                    manual_rollback();
                     break;                   
                 default:
                     break;

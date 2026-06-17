@@ -71,7 +71,7 @@ static const esp_gatts_attr_db_t gw_gatt_db[GW_IDX_NB] =
 };
 
 static char device_name[ESP_BLE_ADV_NAME_LEN_MAX] = "ESP_GATEWAY";
-static uint16_t local_mtu = 256;        //当前mtu活跃值
+static uint16_t local_mtu = 23;        //当前mtu活跃值
 
 static uint8_t adv_config_done = 0;
 #define adv_config_flag      (1 << 0)
@@ -414,7 +414,7 @@ void ble_init(void)
         LOGE(GATTS_TAG, "gatts app register error, error code = %x", ret);
         return;
     }
-    esp_err_t local_mtu_ret = esp_ble_gatt_set_local_mtu(500);
+    esp_err_t local_mtu_ret = esp_ble_gatt_set_local_mtu(ESP_GATT_MAX_MTU_SIZE);
     if (local_mtu_ret){
         LOGE(GATTS_TAG, "set local  MTU failed, error code = %x", local_mtu_ret);
     }
@@ -424,7 +424,7 @@ void ble_init(void)
 
 int ble_send_notify(uint8_t *data, int len)
 {
-    // // 1. 检查连接状态
+    // // 检查连接状态
     // // 假设未连接时 conn_id 为 0xFFFF 或无效值 (根据 ESP-IDF 惯例，通常初始化为 0xFFFF)
     // if (gl_profile_tab[PROFILE_GATEWAY_APP_ID].conn_id == 0xFFFF) {
     //     LOGW(GATTS_TAG, "BLE not connected, cannot send notify");

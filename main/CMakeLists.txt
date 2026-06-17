@@ -22,9 +22,12 @@ set(UI_DESKTOP_INCLUDE "src/util" "src/display/custom" "src/display/custom" "src
 file(GLOB UI_SRCS "src/display/*.c" "src/display/smf/*.c" ${UI_DESKTOP_SRCS} ${UI_MENU_SRCS})
 set(UI_INCLUDE "src/display" "src/display/smf" ${UI_DESKTOP_INCLUDE} ${UI_MENU_INCLUDE})
 
-set(GATEWAY_SRCS ${MQTT_SRCS} ${WIFI_SRCS} ${BLE_SRCS} ${KEY_SRCS} ${GATEWAY_SRCS} ${UTIL_SRCS} ${UI_SRCS})
-set(GATEWAY_INCLUDE ${MQTT_INCLUDE} ${WIFI_INCLUDE} ${BLE_INCLUDE} ${KEY_INCLUDE} ${GATEWAY_INCLUDE} ${UTIL_INCLUDE} ${UI_INCLUDE})
+file(GLOB OTA_SRCS "src/ota/*.c")
+set(OTA_INCLUDE "src/ota")
+
+set(GATEWAY_SRCS ${MQTT_SRCS} ${WIFI_SRCS} ${BLE_SRCS} ${KEY_SRCS} ${GATEWAY_SRCS} ${UTIL_SRCS} ${UI_SRCS} ${OTA_SRCS})
+set(GATEWAY_INCLUDE ${MQTT_INCLUDE} ${WIFI_INCLUDE} ${BLE_INCLUDE} ${KEY_INCLUDE} ${GATEWAY_INCLUDE} ${UTIL_INCLUDE} ${UI_INCLUDE} ${OTA_INCLUDE})
 
 idf_component_register(SRCS "main.c" ${GATEWAY_SRCS}
-                    REQUIRES bt nvs_flash mqtt esp_http_client BSP json
+                    REQUIRES bt nvs_flash mqtt BSP json esp_http_client app_update
                     INCLUDE_DIRS "." ${GATEWAY_INCLUDE})
