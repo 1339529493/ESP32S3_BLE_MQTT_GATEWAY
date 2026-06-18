@@ -12,7 +12,6 @@
 
 #define CONFIG_EXAMPLE_SKIP_VERSION_CHECK     // 设置跳过版本检查，同git版本也下载
 #define CONFIG_EXAMPLE_SKIP_COMMON_NAME_CHECK // 设置跳过证书CN检查
-#define CONFIG_EXAMPLE_FIRMWARE_UPG_URL "http://81.70.100.183/ota/esp_ble_mqtt_gateway_test_ota1.bin"
 #define CONFIG_EXAMPLE_OTA_RECV_TIMEOUT 256
 
 #define NVS_NAMESPACE "nvs"
@@ -218,7 +217,7 @@ void ota_start(uint8_t *url)
     LOGI(OTA_TAG, "正在运行的分区类型 %d 子类型 %d (偏移量 0x%08" PRIx32 ")", running->type, running->subtype, running->address);
 
     esp_http_client_config_t config = {
-        .url = CONFIG_EXAMPLE_FIRMWARE_UPG_URL,
+        .url = (char *)url,
         .cert_pem = NULL,
         .crt_bundle_attach = NULL,
         .timeout_ms = CONFIG_EXAMPLE_OTA_RECV_TIMEOUT,

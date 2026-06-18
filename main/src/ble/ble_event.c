@@ -32,6 +32,7 @@ void ble_task(void *pvParameter)
 char ble_test_cmd[][200] = {
     "\x30\x31\x00\x40{\"cmd\":\"wifi_config\",\"ssid\":\"LinksField\",\"pwd\":\"linksfield2023\"}",
     "\x30\x31\x00\x5a{\"cmd\":\"ota_download\",\"url\":\"http://81.70.100.183/ota/esp_ble_mqtt_gateway_test_ota1.bin\"}",
+    "\x30\x31\x00\x5a{\"cmd\":\"ota_download\",\"url\":\"http://81.70.100.183/ota/esp_ble_mqtt_gateway_test_ota2.bin\"}",
     "\x30\x31\x00\x16{\"cmd\":\"ota_rollback\"}"};
 static void process_json_command(char *json_str)
 {
