@@ -7,16 +7,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/param.h>
+#include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
-#include "esp_log.h"
-#include "esp_timer.h"
-#include "esp_twai.h"
-#include "esp_twai_onchip.h"
-#include "driver/gpio.h"
+#include "can.h"
 
-#define TWAI_TX_GPIO            GPIO_NUM_41
-#define TWAI_RX_GPIO            GPIO_NUM_40
+#define TWAI_TX_GPIO            GPIO_NUM_4
+#define TWAI_RX_GPIO            GPIO_NUM_5
 #define TWAI_QUEUE_DEPTH        10
 #define TWAI_BITRATE            1000000
 
@@ -25,14 +22,42 @@
 #define TWAI_HEARTBEAT_ID       0x7FF
 #define TWAI_DATA_LEN           1000
 
-static const char *TWAI_TAG = "twai_node";
-static twai_node_handle_t can_gateway_node = NULL;  // TWAI 节点句柄
+const char *TWAI_TAG = "twai_node";
+twai_node_handle_t can_gateway_node = NULL;  // TWAI 节点句柄
+
+can_ring_buffer_t ring_buffer;
+TaskHandle_t xCanTaskHandle;
+void can_task(void *pvParameter);
+
+can_id_rvce_buffer_t can_id_rvce_buffer[] = {
+    {.can_id = TWAI_DATA_ID},
+    {.can_id = TWAI_HEARTBEAT_ID}
+};
+
+/**
+ * @brief 初始化环形缓冲区
+ */
+static void init_ring_buffer(void) 
+{
+    for (int i = 0; i < RX_RING_SIZE; i++) {
+        ring_buffer.frames[i].buffer = ring_buffer.data_buffers[i];
+        ring_buffer.frames[i].buffer_len = TWAI_FRAME_MAX_LEN;
+    }
+    ring_buffer.head = 0;
+    ring_buffer.tail = 0;
+    ring_buffer.drop_count = 0;
+    ring_buffer.total_count = 0;
+}
 
 // 发送完成回调
 static IRAM_ATTR bool twai_sender_tx_done_callback(twai_node_handle_t handle, const twai_tx_done_event_data_t *edata, void *user_ctx)
 {
     if (!edata->is_tx_success) {
         ESP_EARLY_LOGW(TWAI_TAG, "发送消息失败, ID: 0x%X", edata->done_tx_frame->header.id);
+    }
+    else
+    {
+        ESP_EARLY_LOGI(TWAI_TAG, "发送消息成功, ID: 0x%X", edata->done_tx_frame->header.id);
     }
     return false; // 无需唤醒任务
 }
@@ -52,11 +77,27 @@ static bool IRAM_ATTR twai_listener_on_state_change_callback(twai_node_handle_t 
     return false;
 }
 
-// TWAI 接收回调 - 存储数据并发出信号
 static bool IRAM_ATTR twai_listener_rx_callback(twai_node_handle_t handle, const twai_rx_done_event_data_t *edata, void *user_ctx)
 {
-    ESP_EARLY_LOGI(TWAI_TAG, "收到数据: %s", user_ctx);
-    return false;
+    ESP_EARLY_LOGI(TWAI_TAG, "收到数据");
+    can_ring_buffer_t *rx_ring = (can_ring_buffer_t *)user_ctx;
+    BaseType_t woken = pdFALSE;
+    int next_head = (rx_ring->head + 1) % RX_RING_SIZE;
+    
+    // 检查是否满了
+    if (next_head == rx_ring->tail) {
+        rx_ring->drop_count++;  // 丢弃该帧
+        return false;
+    }
+    // vTaskNotifyGiveFromISR()
+    // 从硬件接收数据
+    esp_err_t ret = twai_node_receive_from_isr(handle, &rx_ring->frames[rx_ring->head]);
+    if (ret == ESP_OK) {
+        rx_ring->head = next_head;
+        rx_ring->total_count++;
+        vTaskNotifyGiveFromISR(xCanTaskHandle, &woken);
+    }
+    return (woken == pdTRUE);   //pdTRUE使得更高优先级任务解除阻塞，申请调度器上下文切换
 }
 
 void can_bus_init(void)
@@ -74,8 +115,10 @@ void can_bus_init(void)
         },
         .fail_retry_cnt = 3,            // 错误重试次数
         .tx_queue_depth = TWAI_QUEUE_DEPTH,     // 发送队列深度
+        .flags.enable_self_test = true, // 允许自测模式
+        .flags.enable_loopback = true, // 允许回环模式
     };
-
+    
     // 创建 TWAI 节点
     ESP_ERROR_CHECK(twai_new_node_onchip(&node_config, &can_gateway_node));
 
@@ -87,6 +130,8 @@ void can_bus_init(void)
     };
     ESP_ERROR_CHECK(twai_node_config_mask_filter(can_gateway_node, 0, &data_filter));
     ESP_LOGI(TWAI_TAG, "已启用过滤器 ID: 0x%03X 掩码: 0x%03X", data_filter.id, data_filter.mask);
+    init_ring_buffer();
+    xTaskCreatePinnedToCore(can_task, "CAN Task", 1024, NULL, 5, &xCanTaskHandle, 0);
 
     // 注册发送完成回调
     twai_event_callbacks_t callbacks = {
@@ -95,8 +140,7 @@ void can_bus_init(void)
         .on_tx_done = twai_sender_tx_done_callback,
         .on_error = twai_sender_on_error_callback,
     };
-    ESP_ERROR_CHECK(twai_node_register_event_callbacks(can_gateway_node, &callbacks, NULL));
-
+    ESP_ERROR_CHECK(twai_node_register_event_callbacks(can_gateway_node, &callbacks, &ring_buffer));
     // 启用 TWAI 节点
     ESP_ERROR_CHECK(twai_node_enable(can_gateway_node));
     ESP_LOGI(TWAI_TAG, "TWAI 启动成功");
@@ -106,77 +150,101 @@ void can_bus_init(void)
     // ESP_ERROR_CHECK(twai_node_delete(can_gateway_node));
 }
 
-esp_err_t can_send_data(uint32_t can_id, uint8_t *data, int len)
+/**
+ * @brief 接收数据
+ * 
+ * @param frame 数据帧
+ * @return int 接收数量
+ */
+int twai_node_receive(twai_frame_t *frame)
 {
-    esp_err_t err = ESP_OK;
-    twai_node_status_t status;
-    for (int offset = 0; offset < len; offset+= TWAI_FRAME_MAX_LEN) {
-        twai_frame_t tx_frame = {
-            .header.id = can_id,
-            .buffer = data + offset,
-            .buffer_len = len - offset > TWAI_FRAME_MAX_LEN ? TWAI_FRAME_MAX_LEN : len - offset,
-        };
-        err = twai_node_transmit(can_gateway_node, &tx_frame, 500);      //异步，把数据丢入传输数据队列，ID 值大仲裁失败会导致数据一直发不出去
-        if (err != ESP_OK) {
-            ESP_LOGE(TWAI_TAG, "CAN 发送失败 at offset %d, err: 0x%x", offset, err);
-            return err;
+    if (frame == NULL) {
+        return -1;
+    }
+    if (ring_buffer.head == ring_buffer.tail) {
+        return 0;
+    }
+    memcpy((void *)frame, &ring_buffer.frames[ring_buffer.tail], sizeof(twai_frame_t));
+    ring_buffer.tail = (ring_buffer.tail + 1) % RX_RING_SIZE;
+    return 1;
+}
+
+can_id_rvce_buffer_t* find_can_entry_by_id(uint32_t id)
+{
+    for (int i = 0; i < sizeof(can_id_rvce_buffer)/sizeof(can_id_rvce_buffer_t); i++) {
+        if (can_id_rvce_buffer[i].can_id == id) {
+            return &can_id_rvce_buffer[i];
         }
     }
-    err = twai_node_transmit_wait_all_done(can_gateway_node, pdMS_TO_TICKS(1000)); // 等待队列清空，等待所有帧数据发送完毕(-1 表示永久等待)
-    if (err != ESP_OK) {
-        ESP_LOGW(TWAI_TAG, "等待发送完成超时");
-    }
-    return err;
+    return NULL;
 }
 
-esp_err_t can_rcve_data(uint32_t can_id, uint8_t *data, int len)
+/**
+ * @brief 写入数据到缓冲区
+ * 
+ * @param ring_buf 缓冲区
+ * @param data 数据
+ * @return int 0 成功，-1 缓冲区已满
+ */
+static int can_id_buffer_write_bit(can_id_rvce_buffer_t *ring_buf , uint8_t data)
 {
-    esp_err_t err = ESP_OK;
+    int next_head = (ring_buf->head + 1) % CAN_ID_DATA_LEN;
+    if (next_head == ring_buf->tail) {
+        return -1; // 缓冲区已满
+    }
+    ring_buf->data_buffers[ring_buf->head] = data;
+    ring_buf->head = next_head;
+    return 0;
 }
 
+/**
+ * @brief 写入数据到缓冲区
+ * 
+ * @param frame 数据帧
+ * @return int 0 成功，-1 缓冲区已满
+ */
+static int can_id_buffer_write(twai_frame_t *frame)
+{
+    can_id_rvce_buffer_t *entry = find_can_entry_by_id(frame->header.id);
+    for (int i = 0; i < frame->buffer_len; i++) {
+        if (can_id_buffer_write_bit(entry, frame->buffer[i]) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
 
+/**
+ * @brief 读取缓冲区数据
+ * 
+ * @param ring_buf 缓冲区
+ * @param data 数据
+ * @return int 0 读取成功，-1 缓冲区已空
+ */
+int can_id_buffer_read_bit(can_id_rvce_buffer_t *ring_buf , uint8_t *data)
+{
+    int next_tail = (ring_buf->tail + 1) % CAN_ID_DATA_LEN;
+    if (ring_buf->tail == ring_buf->head) {
+        return -1; // 缓冲区已空
+    }
+    *data = ring_buf->data_buffers[ring_buf->tail];
+    ring_buf->tail = next_tail;
+    return 0;
+}
 
-
-
-
-
-
-//  while (1) {
-//         // 发送心跳消息
-//         uint64_t timestamp = esp_timer_get_time();
-//         twai_frame_t tx_frame = {
-//             .header.id = TWAI_HEARTBEAT_ID,
-//             .buffer = (uint8_t *) &timestamp,
-//             .buffer_len = sizeof(timestamp),
-//         };
-//         ESP_ERROR_CHECK(twai_node_transmit(can_gateway_node, &tx_frame, 500));      //异步，把数据丢入传输数据队列，ID 值大仲裁失败会导致数据一直发不出去
-//         ESP_LOGI(TWAI_TAG, "发送心跳消息: %lld", timestamp);
-//         ESP_ERROR_CHECK(twai_node_transmit_wait_all_done(can_gateway_node, -1)); // 等待帧数据发送完毕(-1 表示永久等待)
-
-//         // 每 10 秒发送一次突发数据消息
-//         if ((timestamp / 1000000) % 10 == 0) {
-//             int num_frames = howmany(TWAI_DATA_LEN, TWAI_FRAME_MAX_LEN);
-//             twai_sender_data_t *data = (twai_sender_data_t *)calloc(num_frames, sizeof(twai_sender_data_t));
-//             assert(data != NULL);
-//             ESP_LOGI(TWAI_TAG, "以 %d 帧发送 %d 字节的数据包", TWAI_DATA_LEN, num_frames);
-//             for (int i = 0; i < num_frames; i++) {
-//                 data[i].frame.header.id = TWAI_DATA_ID;
-//                 data[i].frame.buffer = data[i].data;
-//                 data[i].frame.buffer_len = TWAI_FRAME_MAX_LEN;
-//                 memset(data[i].data, i, TWAI_FRAME_MAX_LEN);
-//                 ESP_ERROR_CHECK(twai_node_transmit(can_gateway_node, &data[i].frame, 500));
-//             }
-
-//             // 帧已挂载，等待所有帧发送完毕
-//             ESP_ERROR_CHECK(twai_node_transmit_wait_all_done(can_gateway_node, -1));
-//             free(data);
-//         }
-
-//         vTaskDelay(pdMS_TO_TICKS(1000));
-//         twai_node_status_t status;
-//         twai_node_get_info(can_gateway_node, &status, NULL);
-//         if (status.state == TWAI_ERROR_BUS_OFF) {
-//             ESP_LOGW(TWAI_TAG, "检测到总线关闭状态");
-//             return;
-//         }
-//     } 
+void can_task(void *pvParameter)
+{
+    twai_frame_t frame;
+    while (1)
+    {
+        if (ulTaskNotifyTake(pdTRUE, portMAX_DELAY)) {
+            while (twai_node_receive(&frame))
+            {
+                if (can_id_buffer_write(&frame))
+                {
+                    ESP_LOGI(TWAI_TAG, "缓冲区已满, CAN ID: 0x%03X",frame.header.id);
+                }
+            }
+        }
+    }
+}
