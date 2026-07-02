@@ -55,10 +55,10 @@ static IRAM_ATTR bool twai_sender_tx_done_callback(twai_node_handle_t handle, co
     if (!edata->is_tx_success) {
         ESP_EARLY_LOGW(TWAI_TAG, "发送消息失败, ID: 0x%X", edata->done_tx_frame->header.id);
     }
-    else
-    {
-        ESP_EARLY_LOGI(TWAI_TAG, "发送消息成功, ID: 0x%X", edata->done_tx_frame->header.id);
-    }
+    // else
+    // {
+    //     ESP_EARLY_LOGI(TWAI_TAG, "发送消息成功, ID: 0x%X", edata->done_tx_frame->header.id);
+    // }
     return false; // 无需唤醒任务
 }
 
@@ -79,7 +79,7 @@ static bool IRAM_ATTR twai_listener_on_state_change_callback(twai_node_handle_t 
 
 static bool IRAM_ATTR twai_listener_rx_callback(twai_node_handle_t handle, const twai_rx_done_event_data_t *edata, void *user_ctx)
 {
-    ESP_EARLY_LOGI(TWAI_TAG, "收到数据");
+    // ESP_EARLY_LOGI(TWAI_TAG, "收到数据");
     can_ring_buffer_t *rx_ring = (can_ring_buffer_t *)user_ctx;
     BaseType_t woken = pdFALSE;
     int next_head = (rx_ring->head + 1) % RX_RING_SIZE;
@@ -89,7 +89,7 @@ static bool IRAM_ATTR twai_listener_rx_callback(twai_node_handle_t handle, const
         rx_ring->drop_count++;  // 丢弃该帧
         return false;
     }
-    // vTaskNotifyGiveFromISR()
+
     // 从硬件接收数据
     esp_err_t ret = twai_node_receive_from_isr(handle, &rx_ring->frames[rx_ring->head]);
     if (ret == ESP_OK) {
@@ -131,7 +131,7 @@ void can_bus_init(void)
     ESP_ERROR_CHECK(twai_node_config_mask_filter(can_gateway_node, 0, &data_filter));
     ESP_LOGI(TWAI_TAG, "已启用过滤器 ID: 0x%03X 掩码: 0x%03X", data_filter.id, data_filter.mask);
     init_ring_buffer();
-    xTaskCreatePinnedToCore(can_task, "CAN Task", 1024, NULL, 5, &xCanTaskHandle, 0);
+    xTaskCreatePinnedToCore(can_task, "CAN Task", 4096, NULL, 5, &xCanTaskHandle, 0);
 
     // 注册发送完成回调
     twai_event_callbacks_t callbacks = {
@@ -206,10 +206,16 @@ static int can_id_buffer_write_bit(can_id_rvce_buffer_t *ring_buf , uint8_t data
 static int can_id_buffer_write(twai_frame_t *frame)
 {
     can_id_rvce_buffer_t *entry = find_can_entry_by_id(frame->header.id);
+    if (entry == NULL) {
+        return -1;  // 未找到该ID对应的缓冲区
+    }
+    int used = (entry->head >= entry->tail) ? (entry->head - entry->tail) : (CAN_ID_DATA_LEN - entry->tail + entry->head);
+    int free_space = CAN_ID_DATA_LEN - 1 - used;
+    if (frame->buffer_len > free_space) {
+        return -1;  // 数据帧长度超过缓冲区剩余空间
+    }
     for (int i = 0; i < frame->buffer_len; i++) {
-        if (can_id_buffer_write_bit(entry, frame->buffer[i]) != 0) {
-            return -1;
-        }
+        can_id_buffer_write_bit(entry, frame->buffer[i]);
     }
     return 0;
 }
@@ -242,7 +248,7 @@ void can_task(void *pvParameter)
             {
                 if (can_id_buffer_write(&frame))
                 {
-                    ESP_LOGI(TWAI_TAG, "缓冲区已满, CAN ID: 0x%03X",frame.header.id);
+                    ESP_LOGI(TWAI_TAG, "缓冲区已满/未知ID, CAN ID: 0x%03X",frame.header.id);
                 }
             }
         }

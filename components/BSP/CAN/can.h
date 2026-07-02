@@ -20,8 +20,8 @@ typedef struct {
 typedef struct {
     uint32_t can_id;
     uint8_t data_buffers[CAN_ID_DATA_LEN];
-    int head;
-    int tail;
+    volatile int head;
+    volatile int tail;
 } can_id_rvce_buffer_t;
 
 extern can_ring_buffer_t ring_buffer;
